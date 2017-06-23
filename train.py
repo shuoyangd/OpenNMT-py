@@ -316,6 +316,10 @@ def main():
     elif opt.encoder_type == "img":
         encoder = onmt.modules.ImageEncoder(opt)
         assert("type" not in dataset or dataset["type"] == "img")
+    elif opt.encoder_type == "dual":
+        encoder = onmt.Models.DualEmbeddingEncoder(opt, dicts['mono'])
+        print(' * monolingual vocabulary size %d' %
+              (dicts['mono'].size()))
     else:
         print("Unsupported encoder type %s" % (opt.encoder_type))
 

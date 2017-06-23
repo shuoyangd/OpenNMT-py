@@ -1,10 +1,10 @@
+import pickle
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import onmt.modules
 from torch.nn.utils.rnn import pad_packed_sequence as unpack
 from torch.nn.utils.rnn import pack_padded_sequence as pack
-
 
 class Encoder(nn.Module):
 
@@ -41,6 +41,62 @@ class Encoder(nn.Module):
             outputs = unpack(outputs)[0]
         return hidden_t, outputs
 
+# Model per discussion w/ Kevin:
+# Has two embeddings on the source side -- one to be updated as usual by parallel data,
+#       and the other to be a loaded pre-trained embedding and kept constant through
+#       out training.
+# NOTE:
+#   + when input is a tuple, the first element is the actual words, second is the length
+#   + last dimension of emb is the hidden dimension
+class DualEmbeddingEncoder(nn.Module):
+
+    def __init__(self, opt, dicts):
+        self.layers = opt.layers
+        self.num_directions = 2 if opt.brnn else 1
+        assert opt.rnn_size % (self.num_directions * 2) == 0
+        self.hidden_size = opt.rnn_size // self.num_directions // 2 # divide by 2 because of mono and bi
+        input_size = opt.word_vec_size
+
+        super(DualEmbeddingEncoder, self).__init__()
+        self.word_bi = nn.Embedding(dicts.size(),
+                                     opt.word_vec_size,
+                                     padding_idx=onmt.Constants.PAD)
+        self.word_mono = nn.Embedding(dicts.size(),
+                                     opt.word_vec_size,
+                                     padding_idx=onmt.Constants.PAD)
+        self.rnn_bi = nn.LSTM(input_size, self.hidden_size,
+                           num_layers=opt.layers,
+                           dropout=opt.dropout,
+                           bidirectional=opt.brnn)
+        self.rnn_mono = nn.LSTM(input_size, self.hidden_size,
+                           num_layers=opt.layers,
+                           weights=self.rnn_bi.weight, # rnn weight tying
+                           dropout=opt.dropout,
+                           bidirectional=opt.brnn)
+
+    def load_pretrained_vectors(self, opt):
+        if opt.pre_word_vecs_enc is not None:
+            pretrained = torch.load(opt.pre_word_vecs_enc)
+            self.word_mono.weight.data.copy_(pretrained)
+            self.word_mono.weight.requires_grad = False # fix this embedding
+
+    def forward(self, input, hidden=None):
+        if isinstance(input, tuple):
+            # Lengths data is wrapped inside a Variable.
+            lengths = input[1].data.view(-1).tolist()
+            bi_emb = pack(self.word_bi(input[0]), lengths)
+            mono_emb = pack(self.word_mono(input[0]), lengths)
+        else:
+            bi_emb = self.word_bi(input)
+            mono_emb = self.word_mono(input)
+        outputs_bi, hidden_t_bi = self.rnn_bi(bi_emb, hidden)
+        outputs_mono, hidden_t_mono = self.rnn_mono(mono_emb, hidden)
+        hidden_t = torch.cat((hidden_t_bi, hidden_t_mono), -1)
+        if isinstance(input, tuple):
+            outputs_bi = unpack(outputs_bi)[0]
+            outputs_mono = unpack(outputs_mono)[0]
+        outputs = torch.cat((outputs_bi, outputs_mono), -1)
+        return hidden_t, outputs
 
 class StackedLSTM(nn.Module):
     def __init__(self, num_layers, input_size, rnn_size, dropout):

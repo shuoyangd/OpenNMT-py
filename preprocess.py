@@ -2,7 +2,8 @@ import onmt
 import onmt.Markdown
 import argparse
 import torch
-
+import pdb
+import pickle
 
 def loadImageLibs():
     "Conditional import of torch image libs."
@@ -44,6 +45,8 @@ parser.add_argument('-src_vocab',
                     help="Path to an existing source vocabulary")
 parser.add_argument('-tgt_vocab',
                     help="Path to an existing target vocabulary")
+parser.add_argument('-mono_vocab',
+                    help="Path to an existing source word embedding")
 
 parser.add_argument('-src_seq_length', type=int, default=50,
                     help="Maximum source sequence length")
@@ -113,8 +116,18 @@ def saveVocabulary(name, vocab, file):
     vocab.writeFile(file)
 
 
-def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
+# FIXME: this assumes polyglot format (pickle) and note this only works for python3
+def loadWord2Vec(name, file):
+    vocabList, emb = pickle.load(open(file), encoding='latin1')
+    print('Building' + name + ' vocabulary...')
+    vocab = onmt.Dict()
+    for idx, word in enumerate(vocabList):
+        vocab.add(word, idx)
+    return vocab, torch.from_numpy(emb)
+
+def makeData(srcFile, tgtFile, srcDicts, tgtDicts, monoDicts = None):
     src, tgt = [], []
+    src_mono = [] # src sentence with monolingual embedding indexes, used when passing monoDicts argument
     sizes = []
     count, ignored = 0, 0
 
@@ -158,6 +171,9 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
             if opt.src_type == "text":
                 src += [srcDicts.convertToIdx(srcWords,
                                               onmt.Constants.UNK_WORD)]
+                if monoDicts:
+                    src_mono += [monoDicts.convertToIdx(srcWords,
+                                                        onmt.Constants.UNK_WORD)]
             elif opt.src_type == "img":
                 loadImageLibs()
                 src += [transforms.ToTensor()(
@@ -184,18 +200,25 @@ def makeData(srcFile, tgtFile, srcDicts, tgtDicts):
         perm = torch.randperm(len(src))
         src = [src[idx] for idx in perm]
         tgt = [tgt[idx] for idx in perm]
+        if monoDicts:
+          src_mono = [src_mono[idx] for idx in perm]
         sizes = [sizes[idx] for idx in perm]
 
     print('... sorting sentences by size')
     _, perm = torch.sort(torch.Tensor(sizes))
     src = [src[idx] for idx in perm]
     tgt = [tgt[idx] for idx in perm]
+    if monoDicts:
+      src_mono = [src_mono[idx] for idx in perm]
 
     print(('Prepared %d sentences ' +
           '(%d ignored due to length == 0 or src len > %d or tgt len > %d)') %
           (len(src), ignored, opt.src_seq_length, opt.tgt_seq_length))
 
-    return src, tgt
+    if monoDicts:
+      return src, tgt, src_mono
+    else:
+      return src, tgt
 
 
 def main():
@@ -205,24 +228,38 @@ def main():
     if opt.src_type == "text":
         dicts['src'] = initVocabulary('source', opt.train_src, opt.src_vocab,
                                       opt.src_vocab_size)
+        if opt.mono_vocab:
+            dicts['src_mono'], emb = loadWord2Vec('src_mono', opt.mono_vocab)
 
     dicts['tgt'] = initVocabulary('target', opt.train_tgt, opt.tgt_vocab,
                                   opt.tgt_vocab_size)
 
     print('Preparing training ...')
     train = {}
-    train['src'], train['tgt'] = makeData(opt.train_src, opt.train_tgt,
-                                          dicts['src'], dicts['tgt'])
+    if opt.mono_vocab:
+        train['src'], train['tgt'], train['src_mono'] = makeData(opt.train_src, opt.train_tgt,
+                                                                 dicts['src'], dicts['tgt'])
+    else:
+        train['src'], train['tgt'] = makeData(opt.train_src, opt.train_tgt,
+                                              dicts['src'], dicts['tgt'])
+
 
     print('Preparing validation ...')
     valid = {}
-    valid['src'], valid['tgt'] = makeData(opt.valid_src, opt.valid_tgt,
-                                          dicts['src'], dicts['tgt'])
+    if opt.mono_vocab:
+        valid['src'], valid['tgt'], valid['src_mono'] = makeData(opt.valid_src, opt.valid_tgt,
+                                                                 dicts['src'], dicts['tgt'])
+    else:
+        valid['src'], valid['tgt'] = makeData(opt.valid_src, opt.valid_tgt,
+                                              dicts['src'], dicts['tgt'])
 
     if opt.src_vocab is None:
         saveVocabulary('source', dicts['src'], opt.save_data + '.src.dict')
     if opt.tgt_vocab is None:
         saveVocabulary('target', dicts['tgt'], opt.save_data + '.tgt.dict')
+    if opt.mono_vocab:
+        saveVocabulary('source_mono', dicts['src_mono'], opt.save_data + ".mono.dict")
+        torch.save(emb, opt.save_data + ".mono.pt")
 
     print('Saving data to \'' + opt.save_data + '.train.pt\'...')
     save_data = {'dicts': dicts,
