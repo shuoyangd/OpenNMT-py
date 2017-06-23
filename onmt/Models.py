@@ -51,33 +51,39 @@ class Encoder(nn.Module):
 #   + last dimension of emb is the hidden dimension
 class DualEmbeddingEncoder(nn.Module):
 
-    def __init__(self, opt, dicts):
+    def __init__(self, opt, dict_, mono_dict):
         self.layers = opt.layers
         self.num_directions = 2 if opt.brnn else 1
         assert opt.rnn_size % (self.num_directions * 2) == 0
         self.hidden_size = opt.rnn_size // self.num_directions // 2 # divide by 2 because of mono and bi
-        input_size = opt.word_vec_size
+        self.input_size = opt.word_vec_size
 
         super(DualEmbeddingEncoder, self).__init__()
-        self.word_bi = nn.Embedding(dicts.size(),
+        self.word_bi = nn.Embedding(dict_.size(),
                                      opt.word_vec_size,
                                      padding_idx=onmt.Constants.PAD)
-        self.word_mono = nn.Embedding(dicts.size(),
+        self.word_mono = nn.Embedding(mono_dict.size(),
                                      opt.word_vec_size,
                                      padding_idx=onmt.Constants.PAD)
-        self.rnn_bi = nn.LSTM(input_size, self.hidden_size,
+        self.rnn_bi = nn.LSTM(self.input_size, self.hidden_size,
                            num_layers=opt.layers,
                            dropout=opt.dropout,
                            bidirectional=opt.brnn)
-        self.rnn_mono = nn.LSTM(input_size, self.hidden_size,
+        self.rnn_mono = self.rnn_bi # rnn weights tying
+        """
+        self.rnn_mono = nn.LSTM(self.input_size, self.hidden_size,
                            num_layers=opt.layers,
-                           weights=self.rnn_bi.weight, # rnn weight tying
+                           # weights=self.rnn_bi.weight, # rnn weight tying
                            dropout=opt.dropout,
                            bidirectional=opt.brnn)
+        """
 
     def load_pretrained_vectors(self, opt):
         if opt.pre_word_vecs_enc is not None:
             pretrained = torch.load(opt.pre_word_vecs_enc)
+            if pretrained.size()[1] != self.input_size:
+                print("warning: for now the two embeddings should have the same size")
+            assert pretrained.size()[1] == self.input_size
             self.word_mono.weight.data.copy_(pretrained)
             self.word_mono.weight.requires_grad = False # fix this embedding
 
@@ -90,13 +96,17 @@ class DualEmbeddingEncoder(nn.Module):
         else:
             bi_emb = self.word_bi(input)
             mono_emb = self.word_mono(input)
+        # output is a namedtuple that has two fields: data, batch_sizes
+        # hidden is a tuple (hidden, cell), each is a torch variable
         outputs_bi, hidden_t_bi = self.rnn_bi(bi_emb, hidden)
         outputs_mono, hidden_t_mono = self.rnn_mono(mono_emb, hidden)
-        hidden_t = torch.cat((hidden_t_bi, hidden_t_mono), -1)
+        hidden_t = (torch.cat([hidden_t_bi[0], hidden_t_mono[0]], -1),
+                    torch.cat([hidden_t_bi[1], hidden_t_mono[1]], -1))
+        # unpacked sequence is just a torch variable (holding a floatTensor)
         if isinstance(input, tuple):
             outputs_bi = unpack(outputs_bi)[0]
             outputs_mono = unpack(outputs_mono)[0]
-        outputs = torch.cat((outputs_bi, outputs_mono), -1)
+        outputs = torch.cat([outputs_bi, outputs_mono], -1)
         return hidden_t, outputs
 
 class StackedLSTM(nn.Module):

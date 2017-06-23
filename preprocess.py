@@ -118,12 +118,17 @@ def saveVocabulary(name, vocab, file):
 
 # FIXME: this assumes polyglot format (pickle) and note this only works for python3
 def loadWord2Vec(name, file):
-    vocabList, emb = pickle.load(open(file), encoding='latin1')
-    print('Building' + name + ' vocabulary...')
-    vocab = onmt.Dict()
+    vocabList, emb = pickle.load(open(file, 'rb'), encoding='latin1')
+    print('Building ' + name + ' vocabulary...')
+    vocab = onmt.Dict([onmt.Constants.UNK_WORD, onmt.Constants.BOS_WORD,
+                       onmt.Constants.EOS_WORD, onmt.Constants.PAD_WORD])
+                       # lower=opt.lower) # not sure if embedding is all-lowercase
+
     for idx, word in enumerate(vocabList):
-        vocab.add(word, idx)
+        if idx > 3: # for polyglot, the first are unk, bos, eos, pad
+            vocab.add(word, idx)
     return vocab, torch.from_numpy(emb)
+
 
 def makeData(srcFile, tgtFile, srcDicts, tgtDicts, monoDicts = None):
     src, tgt = [], []
@@ -238,7 +243,7 @@ def main():
     train = {}
     if opt.mono_vocab:
         train['src'], train['tgt'], train['src_mono'] = makeData(opt.train_src, opt.train_tgt,
-                                                                 dicts['src'], dicts['tgt'])
+                                                                 dicts['src'], dicts['tgt'], dicts['src_mono'])
     else:
         train['src'], train['tgt'] = makeData(opt.train_src, opt.train_tgt,
                                               dicts['src'], dicts['tgt'])
@@ -248,7 +253,7 @@ def main():
     valid = {}
     if opt.mono_vocab:
         valid['src'], valid['tgt'], valid['src_mono'] = makeData(opt.valid_src, opt.valid_tgt,
-                                                                 dicts['src'], dicts['tgt'])
+                                                                 dicts['src'], dicts['tgt'], dicts['src_mono'])
     else:
         valid['src'], valid['tgt'] = makeData(opt.valid_src, opt.valid_tgt,
                                               dicts['src'], dicts['tgt'])

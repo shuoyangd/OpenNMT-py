@@ -330,9 +330,9 @@ def main():
         encoder = onmt.modules.ImageEncoder(opt)
         assert("type" not in dataset or dataset["type"] == "img")
     elif opt.encoder_type == "dual":
-        encoder = onmt.Models.DualEmbeddingEncoder(opt, dicts['mono'])
+        encoder = onmt.Models.DualEmbeddingEncoder(opt, dicts['src'], dicts['src_mono'])
         print(' * monolingual vocabulary size %d' %
-              (dicts['mono'].size()))
+              (dicts['src_mono'].size()))
     else:
         print("Unsupported encoder type %s" % (opt.encoder_type))
 
@@ -391,7 +391,7 @@ def main():
         optim = checkpoint['optim']
         print(optim)
 
-    optim.set_parameters(model.parameters())
+    optim.set_parameters(filter(lambda p: p.requires_grad, model.parameters()))
 
     if opt.train_from or opt.train_from_state_dict:
         optim.optimizer.load_state_dict(
