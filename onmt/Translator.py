@@ -25,11 +25,15 @@ class Translator(object):
         model_opt = checkpoint['opt']
         self.src_dict = checkpoint['dicts']['src']
         self.tgt_dict = checkpoint['dicts']['tgt']
+        if self._type == "dual":
+            self.src_mono_dict = checkpoint['dicts']['src_mono']
         self._type = model_opt.encoder_type \
             if "encoder_type" in model_opt else "text"
 
         if self._type == "text":
             encoder = onmt.Models.Encoder(model_opt, self.src_dict)
+        elif self._type == "dual":
+            encoder = onmt.Models.DualEmbeddingEncoder(model_opt, self.src_dict, self.src_mono_dict)
         elif self._type == "img":
             loadImageLibs()
             encoder = onmt.modules.ImageEncoder(model_opt)
