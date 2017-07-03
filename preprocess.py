@@ -119,7 +119,7 @@ def saveVocabulary(name, vocab, file):
 # FIXME: this assumes polyglot format (pickle) and note this only works for python3
 def loadWord2Vec(name, file):
     vocabList, emb = pickle.load(open(file, 'rb'), encoding='latin1')
-    print('Building ' + name + ' vocabulary...')
+    print('Building ' + name + ' vocabulary of size {0}...'.format(len(vocabList)))
     vocab = onmt.Dict([onmt.Constants.UNK_WORD, onmt.Constants.BOS_WORD,
                        onmt.Constants.EOS_WORD, onmt.Constants.PAD_WORD])
                        # lower=opt.lower) # not sure if embedding is all-lowercase
