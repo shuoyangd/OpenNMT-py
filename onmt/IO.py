@@ -4,6 +4,7 @@ import codecs
 import torchtext.data
 import torchtext.vocab
 from collections import Counter
+import os.path
 
 PAD_WORD = '<blank>'
 UNK = 0
@@ -59,6 +60,41 @@ def merge_vocabs(vocabs, vocab_size=None):
     return torchtext.vocab.Vocab(merged,
                                  specials=[PAD_WORD, BOS_WORD, EOS_WORD],
                                  max_size=vocab_size)
+
+
+def load_word2vec(emb_path):
+    with codecs.open(emb_path, "r", "utf-8") as emb_file:
+        info_line = emb_file.readline()
+        info_tokens = info_line.strip().split()
+        vocab_size = int(info_tokens[0])
+        dim = int(info_tokens[1])
+        vocab = []
+        vecs = []
+        for line in emb_file:
+            elems = line.strip().split()
+            vocab.append(elems[0])
+            vecs.append([ float(cell) for cell in elems[1:] ])
+        vecs = torch.FloatTensor(vecs)
+        return vocab, vecs
+
+
+def set_torchtext_vocab_vectors(torchtext_vocab, emb_vocab, emb_vecs, opt):
+    vec_dim = len(emb_vecs[0])
+    word_to_vec_id = {}
+    for i, w in enumerate(emb_vocab):
+        word_to_vec_id[w] = i
+
+    if opt.expand_vocab:
+        for w in sorted(emb_vocab):
+            if torchtext_vocab.stoi.get(w, None):
+                torchtext_vocab.itos.append(w)
+                torchtext_vocab.stoi[w] = len(torchtext_vocab) - 1
+
+    torchtext_vocab.vectors = torch.Tensor(len(torchtext_vocab), vec_dim)
+    for i, token in enumerate(torchtext_vocab.itos):
+        vec_id = word_to_vec_id.get(token, None)
+        if vec_id:
+            torchtext_vocab.vectors[i] = emb_vecs[vec_id]
 
 
 class OrderedIterator(torchtext.data.Iterator):
@@ -257,6 +293,25 @@ class ONMTDataset(torchtext.data.Dataset):
             fields["src_feat_" + str(j)].build_vocab(train)
         fields["tgt"].build_vocab(train, max_size=opt.tgt_vocab_size,
                                   min_freq=opt.tgt_words_min_frequency)
+
+        if opt.pre_word_vecs_enc:
+            src_emb_vocab, src_emb_vecs = load_word2vec(opt.pre_word_vecs_enc)
+            set_torchtext_vocab_vectors(fields["src"].vocab, src_emb_vocab, src_emb_vecs, opt)
+        else:
+            fields["src"].vectors = None
+
+        if opt.pre_word_vecs_dec:
+            tgt_emb_vocab, tgt_emb_vecs = load_word2vec(opt.pre_word_vecs_dec)
+            set_torchtext_vocab_vectors(fields["tgt"].vocab, tgt_emb_vocab, tgt_emb_vecs, opt)
+        else:
+            fields["tgt"].vectors = None
+
+        for j in range(train.nfeatures):
+           if os.path.isfile(opt.pre_word_vecs_enc_features_prefix + "." + str(j)):
+                src_feat_emb_vocab, src_feat_emb_vecs = load_word2vec(opt.pre_word_vecs_enc_features_prefix + "." + str(j))
+                set_torchtext_vocab_vectors(fields["src_feat_" + str(j)].vocab, src_feat_emb_vocab, src_feat_emb_vecs, opt)
+           else:
+                fields["src_feat_" + str(j)].vectors = None
 
         # Merge the input and output vocabularies.
         if opt.share_vocab:

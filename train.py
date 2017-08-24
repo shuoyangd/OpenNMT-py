@@ -275,8 +275,12 @@ def main():
             for p in model.parameters():
                 p.data.uniform_(-opt.param_init, opt.param_init)
 
-        model.encoder.embeddings.load_pretrained_vectors(opt.pre_word_vecs_enc)
-        model.decoder.embeddings.load_pretrained_vectors(opt.pre_word_vecs_dec)
+        if fields['src'].vocab.vectors:
+            model.encoder.embeddings.word_lut.weight.data.copy_(fields['src'].vocab.vectors)
+        if fields['tgt'].vocab.vectors:
+            model.decoder.embeddings.word_lut.weight.data.copy_(fields['tgt'].vocab.vectors)
+        for j in range(train.nfeatures):
+            model.encoder.embeddings.emb_luts[j + 1].weight.data.copy_(fields['src_feat_' + str(j)].vocab.vectors)
 
         optim = onmt.Optim(
             opt.optim, opt.learning_rate, opt.max_grad_norm,

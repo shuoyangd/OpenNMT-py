@@ -41,6 +41,22 @@ parser.add_argument('-seed', type=int, default=3435,
 parser.add_argument('-report_every', type=int, default=100000,
                     help="Report status every this many sentences")
 
+# Pretrained word vectors
+parser.add_argument('-pre_word_vecs_enc',
+                    help="""If a valid path is specified, then this will load
+                    pretrained word embeddings on the encoder side.
+                    See README for specific formatting instructions.""")
+parser.add_argument('-pre_word_vecs_dec',
+                    help="""If a valid path is specified, then this will load
+                    pretrained word embeddings on the decoder side.
+                    See README for specific formatting instructions.""")
+parser.add_argument('-pre_word_vecs_enc_features_prefix',
+                    help="""If a valid path prefix is specified, then this will
+                    load pretrained word embeddings for the features on the
+                    source side, with suffix ".j" appended for the embedding of
+                    the j-th feature.
+                    See README for specific formatting instructions.""")
+
 opts.preprocess_opts(parser)
 
 opt = parser.parse_args()

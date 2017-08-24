@@ -110,16 +110,6 @@ def train_opts(parser):
                         with support (-param_init, param_init).
                         Use 0 to not use initialization""")
 
-    # Pretrained word vectors
-    parser.add_argument('-pre_word_vecs_enc',
-                        help="""If a valid path is specified, then this will load
-                        pretrained word embeddings on the encoder side.
-                        See README for specific formatting instructions.""")
-    parser.add_argument('-pre_word_vecs_dec',
-                        help="""If a valid path is specified, then this will load
-                        pretrained word embeddings on the decoder side.
-                        See README for specific formatting instructions.""")
-
     # Optimization options
     parser.add_argument('-batch_size', type=int, default=64,
                         help='Maximum batch size')
