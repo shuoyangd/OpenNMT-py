@@ -56,6 +56,9 @@ parser.add_argument('-pre_word_vecs_enc_features_prefix',
                     source side, with suffix ".j" appended for the embedding of
                     the j-th feature.
                     See README for specific formatting instructions.""")
+parser.add_argument('-expand_vocab', default=False, action="store_true",
+                    help="""expand vocabulary to include all words that are
+                    present in the word embedding""")
 
 opts.preprocess_opts(parser)
 
