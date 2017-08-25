@@ -276,12 +276,22 @@ def main():
                 p.data.uniform_(-opt.param_init, opt.param_init)
 
         if fields['src'].vocab.vectors is not None:
-            model.encoder.embeddings.word_lut.weight.data.copy_(fields['src'].vocab.vectors)
+            if cuda:
+                model.encoder.embeddings.word_lut.weight.data = fields['src'].vocab.vectors.cuda()
+            else:
+                model.encoder.embeddings.word_lut.weight.data = fields['src'].vocab.vectors
         if fields['tgt'].vocab.vectors is not None:
-            model.decoder.embeddings.word_lut.weight.data.copy_(fields['tgt'].vocab.vectors)
+            if cuda:
+                model.decoder.embeddings.word_lut.weight.data = fields['tgt'].vocab.vectors.cuda()
+            else:
+                model.decoder.embeddings.word_lut.weight.data = fields['tgt'].vocab.vectors
         for j in range(train.nfeatures):
             if fields['src_feat_' + str(j)].vocab.vectors is not None:
-                model.encoder.embeddings.emb_luts[j + 1].weight.data.copy_(fields['src_feat_' + str(j)].vocab.vectors)
+                if cuda:
+                    model.encoder.embeddings.emb_luts[j + 1].weight.data = fields['src_feat_' + str(j)].vocab.vectors.cuda()
+                else:
+                    model.encoder.embeddings.emb_luts[j + 1].weight.data = fields['src_feat_' + str(j)].vocab.vectors
+
 
         optim = onmt.Optim(
             opt.optim, opt.learning_rate, opt.max_grad_norm,
