@@ -75,11 +75,6 @@ class Embeddings(nn.Module):
         pe[:, 1::2] = torch.cos(pe[:, 1::2])
         return pe.unsqueeze(1)
 
-    def load_pretrained_vectors(self, emb_file):
-        if emb_file is not None:
-            pretrained = torch.load(emb_file)
-            self.word_lut.weight.data.copy_(pretrained)
-
     def merge(self, features):
         if self.feat_merge == 'concat':
             return torch.cat(features, 2)
