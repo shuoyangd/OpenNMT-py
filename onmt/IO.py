@@ -298,20 +298,20 @@ class ONMTDataset(torchtext.data.Dataset):
             src_emb_vocab, src_emb_vecs = load_word2vec(opt.pre_word_vecs_enc)
             set_torchtext_vocab_vectors(fields["src"].vocab, src_emb_vocab, src_emb_vecs, opt)
         else:
-            fields["src"].vectors = None
+            fields["src"].vocab.vectors = None
 
         if opt.pre_word_vecs_dec:
             tgt_emb_vocab, tgt_emb_vecs = load_word2vec(opt.pre_word_vecs_dec)
             set_torchtext_vocab_vectors(fields["tgt"].vocab, tgt_emb_vocab, tgt_emb_vecs, opt)
         else:
-            fields["tgt"].vectors = None
+            fields["tgt"].vocab.vectors = None
 
         for j in range(train.nfeatures):
            if os.path.isfile(opt.pre_word_vecs_enc_features_prefix + "." + str(j)):
                 src_feat_emb_vocab, src_feat_emb_vecs = load_word2vec(opt.pre_word_vecs_enc_features_prefix + "." + str(j))
                 set_torchtext_vocab_vectors(fields["src_feat_" + str(j)].vocab, src_feat_emb_vocab, src_feat_emb_vecs, opt)
            else:
-                fields["src_feat_" + str(j)].vectors = None
+                fields["src_feat_" + str(j)].vocab.vectors = None
 
         # Merge the input and output vocabularies.
         if opt.share_vocab:
