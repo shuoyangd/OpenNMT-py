@@ -280,11 +280,13 @@ def main():
                 model.encoder.embeddings.word_lut.weight.data = fields['src'].vocab.vectors.cuda()
             else:
                 model.encoder.embeddings.word_lut.weight.data = fields['src'].vocab.vectors
+
         if fields['tgt'].vocab.vectors is not None:
             if cuda:
                 model.decoder.embeddings.word_lut.weight.data = fields['tgt'].vocab.vectors.cuda()
             else:
                 model.decoder.embeddings.word_lut.weight.data = fields['tgt'].vocab.vectors
+
         for j in range(train.nfeatures):
             if fields['src_feat_' + str(j)].vocab.vectors is not None:
                 if cuda:
@@ -292,6 +294,10 @@ def main():
                 else:
                     model.encoder.embeddings.emb_luts[j + 1].weight.data = fields['src_feat_' + str(j)].vocab.vectors
 
+        if opt.fix_encoder:
+            model.encoder.embeddings.word_lut.weight.requires_grad = False
+        for j in opt.fix_encoder_features:
+            model.encoder.embeddings.emb_luts[j+1].weight.requires_grad = False
 
         optim = onmt.Optim(
             opt.optim, opt.learning_rate, opt.max_grad_norm,
@@ -304,7 +310,8 @@ def main():
         optim = checkpoint['optim']
         print(optim)
 
-    optim.set_parameters(model.parameters())
+    # optim.set_parameters(model.parameters()) # don't optimize for all
+    optim.set_parameters(filter(lambda p: p.requires_grad, model.parameters()))
 
     if opt.train_from:
         optim.optimizer.load_state_dict(

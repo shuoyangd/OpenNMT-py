@@ -39,6 +39,13 @@ def model_opts(parser):
     parser.add_argument('-decoder_type', type=str, default='rnn',
                         choices=['rnn', 'transformer'],
                         help='Type of decoder layer to use.')
+    parser.add_argument('-fix_encoder', type=bool, default=False,
+                        action='store_true',
+                        help='Fix encoder and do not update during training.')
+    parser.add_argument('-fix_encoder_features', type=int,
+                        nargs='+', default=[],
+                        help="""Encoder feature indices for which the corresponding
+                        embeddings should be fixed.""")
 
     parser.add_argument('-layers', type=int, default=-1,
                         help='Number of layers in enc/dec.')
