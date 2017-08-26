@@ -42,7 +42,7 @@ def model_opts(parser):
     parser.add_argument('-fix_encoder', type=bool, default=False,
                         action='store_true',
                         help='Fix encoder and do not update during training.')
-    parser.add_argument('-fix_encoder_features', type=int,
+    parser.add_argument('-fix_encoder_features', type=list,
                         nargs='+', default=[],
                         help="""Encoder feature indices for which the corresponding
                         embeddings should be fixed.""")
