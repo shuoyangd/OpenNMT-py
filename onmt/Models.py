@@ -30,21 +30,24 @@ class Embeddings(nn.Module):
         emb_sizes = [vec_size]
         if feature_dicts:
             vocab_sizes.extend(len(feat_dict) for feat_dict in feature_dicts)
-            if opt.feat_merge == 'concat':
-                # Derive embedding sizes from each feature's vocab size
-                emb_sizes.extend([int(len(feat_dict) ** feat_exp)
-                                  for feat_dict in feature_dicts])
-            elif opt.feat_merge == 'sum':
-                # All embeddings to be summed must be the same size
-                emb_sizes.extend([vec_size] * len(feature_dicts))
-            else:
-                # mlp feature merge
-                emb_sizes.extend([opt.feat_vec_size] * len(feature_dicts))
-                # apply a layer of mlp to get it down to the correct dim
-                self.mlp = nn.Sequential(onmt.modules.BottleLinear(
-                                        sum(emb_sizes),
-                                        vec_size),
-                                        nn.ReLU())
+            for feat_dict in feature_dicts:
+                if feat_dict.vectors is not None:
+                    # Match the dimension of vectors to be initialized (and maybe fixed)
+                    emb_sizes.append(feat_dict.vectors.size()[1])
+                elif opt.feat_merge == 'concat':
+                    # Derive embedding sizes from each feature's vocab size
+                    emb_sizes.append(int(len(feat_dict) ** feat_exp))
+                elif opt.feat_merge == 'sum':
+                    # All embeddings to be summed must be the same size
+                    emb_sizes.append(vec_size)
+                else:
+                    # mlp feature merge
+                    emb_sizes.extend(opt.feat_vec_size)
+                    # apply a layer of mlp to get it down to the correct dim
+                    self.mlp = nn.Sequential(onmt.modules.BottleLinear(
+                                            sum(emb_sizes),
+                                            vec_size),
+                                            nn.ReLU())
         self.emb_luts = \
             nn.ModuleList([
                 nn.Embedding(vocab, dim,

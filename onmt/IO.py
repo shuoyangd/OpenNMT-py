@@ -86,7 +86,7 @@ def set_torchtext_vocab_vectors(torchtext_vocab, emb_vocab, emb_vecs, opt):
 
     if opt.expand_vocab:
         for w in sorted(emb_vocab):
-            if torchtext_vocab.stoi.get(w, None):
+            if torchtext_vocab.stoi.get(w, None) is None:
                 torchtext_vocab.itos.append(w)
                 torchtext_vocab.stoi[w] = len(torchtext_vocab) - 1
 
@@ -307,9 +307,10 @@ class ONMTDataset(torchtext.data.Dataset):
             fields["tgt"].vocab.vectors = None
 
         for j in range(train.nfeatures):
-           if os.path.isfile(opt.pre_word_vecs_enc_features_prefix + "." + str(j)):
-                src_feat_emb_vocab, src_feat_emb_vecs = load_word2vec(opt.pre_word_vecs_enc_features_prefix + "." + str(j))
-                set_torchtext_vocab_vectors(fields["src_feat_" + str(j)].vocab, src_feat_emb_vocab, src_feat_emb_vecs, opt)
+           if opt.pre_word_vecs_enc_features_prefix is not None and \
+                   os.path.isfile(opt.pre_word_vecs_enc_features_prefix + "." + str(j)):
+               src_feat_emb_vocab, src_feat_emb_vecs = load_word2vec(opt.pre_word_vecs_enc_features_prefix + "." + str(j))
+               set_torchtext_vocab_vectors(fields["src_feat_" + str(j)].vocab, src_feat_emb_vocab, src_feat_emb_vecs, opt)
            else:
                 fields["src_feat_" + str(j)].vocab.vectors = None
 
