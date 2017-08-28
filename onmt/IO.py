@@ -95,6 +95,8 @@ def set_torchtext_vocab_vectors(torchtext_vocab, emb_vocab, emb_vecs, opt):
         vec_id = word_to_vec_id.get(token, None)
         if vec_id:
             torchtext_vocab.vectors[i] = emb_vecs[vec_id]
+        else:
+            torchtext_vocab.vectors[i] = torch.rand(vec_dim)
 
 
 class OrderedIterator(torchtext.data.Iterator):
