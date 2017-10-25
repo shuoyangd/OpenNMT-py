@@ -73,8 +73,7 @@ def make_features(batch, fields):
 def eval(model, criterion, data, fields):
     validData = onmt.IO.OrderedIterator(
         dataset=data, device=opt.gpuid[0] if opt.gpuid else -1,
-        batch_size=opt.batch_size, train=False, sort=True, sort_within_batch=False)
-#         batch_size=opt.batch_size, train=False, sort=True)
+        batch_size=opt.batch_size, train=False, sort=True)
 
     stats = onmt.Loss.Statistics()
     model.eval()
