@@ -97,7 +97,8 @@ class Translator(object):
         if "tgt" in batch.__dict__:
             decStates = encStates
             mask(padMask.unsqueeze(0))
-            decOut, decStates, attn = self.model.decoder(batch.tgt[:-1],
+#            decOut, decStates, attn = self.model.decoder(batch.tgt[:-1],
+            decOut, decStates, attn = self.model.decoder(batch.tgt,
                                                          batch.src,
                                                          context,
                                                          decStates)
