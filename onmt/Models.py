@@ -461,7 +461,7 @@ class NMTModel(nn.Module):
                                       Init hidden state
         """
         src = src
-#        tgt = tgt[:-1]  # exclude last target from inputs
+        tgt = tgt[:-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src, lengths)
         enc_state = self.init_decoder_state(context, enc_hidden)
         out, dec_state, attns = self.decoder(tgt, src, context,
