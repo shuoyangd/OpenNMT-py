@@ -60,7 +60,7 @@ class Translator(object):
                     tokens.append(vocab.itos[tok])
                 else:
                     tokens.append(copy_vocab.itos[tok - len(vocab)])
-        tokens = tokens[:-1]  # EOS
+#        tokens = tokens[:-1]  # EOS
         if self.opt.replace_unk:
             for i in range(len(tokens)):
                 if tokens[i] == onmt.IO.UNK:
