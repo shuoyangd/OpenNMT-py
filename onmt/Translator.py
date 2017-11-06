@@ -60,7 +60,7 @@ class Translator(object):
                     tokens.append(vocab.itos[tok])
                 else:
                     tokens.append(copy_vocab.itos[tok - len(vocab)])
-        tokens = tokens[:-1]  # EOS
+#        tokens = tokens[:-1]  # EOS
         if self.opt.replace_unk:
             for i in range(len(tokens)):
                 if tokens[i] == onmt.IO.UNK:
@@ -97,7 +97,8 @@ class Translator(object):
         if "tgt" in batch.__dict__:
             decStates = encStates
             mask(padMask.unsqueeze(0))
-            decOut, decStates, attn = self.model.decoder(batch.tgt[:-1],
+#            decOut, decStates, attn = self.model.decoder(batch.tgt[:-1],
+            decOut, decStates, attn = self.model.decoder(batch.tgt,
                                                          batch.src,
                                                          context,
                                                          decStates)
