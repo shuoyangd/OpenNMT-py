@@ -11,8 +11,8 @@ import onmt
 import onmt.Models
 import onmt.ModelConstructor
 import onmt.modules
-from onmt.Utils import aeq, use_gpu
-import opts
+from nmt.onmt.Utils import aeq, use_gpu
+from . import opts
 
 parser = argparse.ArgumentParser(description='train.py')
 

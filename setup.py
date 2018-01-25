@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-setup(name='OpenNMT-py',
+setup(name='nmt',
       description='A python implementation of OpenNMT',
       version='0.1',
-      packages=['onmt', 'onmt.modules'])
+      packages=['nmt', 'nmt.modules'])

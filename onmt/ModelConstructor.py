@@ -7,12 +7,13 @@ import torch.nn as nn
 import onmt
 import onmt.Models
 import onmt.modules
-from onmt.IO import ONMTDataset
-from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
+from nmt.onmt.IO import ONMTDataset
+from nmt.onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
                         StdRNNDecoder, InputFeedRNNDecoder
-from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
+from nmt.onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder
+from lutra.model.StackLSTMGenerator import StackLSTMGenerator
 
 
 def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
@@ -180,6 +181,9 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
 
     # Add generator to model (this registers it as parameter of model).
     model.generator = generator
+
+    if model_opt.rnng:
+        model.rnng_generator = StackLSTMGenerator(fields["tgt"].vocab, decoder.embeddings.word_lut, fields["parse"].vocab, model_opt)
 
     # Make the whole model leverage GPU if indicated to do so.
     if gpu:

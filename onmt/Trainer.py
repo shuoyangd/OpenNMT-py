@@ -67,7 +67,7 @@ class Statistics(object):
 class Trainer(object):
     def __init__(self, model, train_iter, valid_iter,
                  train_loss, valid_loss, optim,
-                 trunc_size, shard_size):
+                 trunc_size, shard_size, aux_loss=None):
         """
         Args:
             model: the seq2seq model.
@@ -78,6 +78,7 @@ class Trainer(object):
             optim: the optimizer responsible for lr update.
             trunc_size: a batch is divided by several truncs of this size.
             shard_size: compute loss in shards of this size for efficiency.
+            aux_loss: the auxiliary LossCompute object reserved for multi-task training (e.g. RNNG)
         """
         # Basic attributes.
         self.model = model
@@ -88,6 +89,7 @@ class Trainer(object):
         self.optim = optim
         self.trunc_size = trunc_size
         self.shard_size = shard_size
+        self.aux_loss = aux_loss
 
         # Set model in training mode.
         self.model.train()
@@ -123,10 +125,20 @@ class Trainer(object):
                         batch, outputs, attns, j,
                         trunc_size, self.shard_size)
 
+                if self.aux_loss is not None:
+                    # aux_batch has the same source as the original batch for NMT training,
+                    # but the target side is changed to the parsing action sequence
+                    aux_stats = self.aux_loss.sharded_compute_loss(
+                        batch, outputs, attns, j,
+                        trunc_size, self.shard_size)
+
                 # 4. Update the parameters and statistics.
                 self.optim.step()
                 total_stats.update(batch_stats)
                 report_stats.update(batch_stats)
+                if self.aux_loss is not None:
+                    total_stats.update(aux_stats)
+                    report_stats.update(aux_stats)
 
                 # If truncated, don't backprop fully.
                 if dec_state is not None:

@@ -111,7 +111,7 @@ class ONMTDataset(torchtext.data.Dataset):
         return -len(ex.src)
 
     def __init__(self, src_path, tgt_path, fields, opt,
-                 src_img_dir=None, **kwargs):
+                 src_img_dir=None, aux_tgt_path=None, **kwargs):
         """
         Create a TranslationDataset given paths and fields.
 
@@ -121,6 +121,7 @@ class ONMTDataset(torchtext.data.Dataset):
         fields:
         src_img_dir: if not None, uses images instead of text for the
                      source. TODO: finish
+        aux_tgt_path: if an auxiliary target sequence file is provided for multi-task training, pass it here.
         """
         if src_img_dir:
             self.type_ = "img"
@@ -148,11 +149,22 @@ class ONMTDataset(torchtext.data.Dataset):
         else:
             tgt_examples = None
 
+        if aux_tgt_path is not None:
+            tgt_truncate = 0 if opt is None else opt.tgt_seq_length_trunc
+            aux_tgt_data = self._read_corpus_file(aux_tgt_path, tgt_truncate)
+            aux_tgt_examples = self._construct_examples(aux_tgt_data, "aux_tgt")
+        else:
+            aux_tgt_examples = None
+
         # examples: one for each src line or (src, tgt) line pair.
         # Each element is a dictionary whose keys represent at minimum
         # the src tokens and their indices and potentially also the
         # src and tgt features and alignment information.
-        if tgt_examples is not None:
+        if aux_tgt_examples is not None and \
+                tgt_examples is not None:
+            examples = (join_dicts(src, tgt, aux_tgt)
+                        for src, tgt, aux_tgt in zip(src_examples, tgt_examples, aux_tgt_examples))
+        elif tgt_examples is not None:
             examples = (join_dicts(src, tgt)
                         for src, tgt in zip(src_examples, tgt_examples))
         else:

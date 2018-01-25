@@ -1,5 +1,5 @@
 import argparse
-from onmt.modules.SRU import CheckSRU
+from nmt.onmt.modules.SRU import CheckSRU
 
 
 def model_opts(parser):
@@ -96,6 +96,24 @@ def model_opts(parser):
                         help='Train a coverage attention layer.')
     parser.add_argument('-lambda_coverage', type=float, default=1,
                         help='Lambda value for coverage.')
+
+    # RNNG Generator options
+    parser.add_argument('-rnng', action="store_true",
+                        help="Use RNNG as an auxiliary generator. (default=false)")
+    parser.add_argument('-stack_size', type=int, default=100,
+                        help="Stack size reserved for the stack LSTM components. (default=100)")
+    parser.add_argument('-stack_hid_dim', type=int, default=100,
+                        help="Size of the LSTM hidden embedding. (default=100)")
+    parser.add_argument('-stack_state_dim', type=int, default=20,
+                        help="Size of the parser state pointer. (default=20)")
+    parser.add_argument('-stack_lstm_layers', type=int, default=2,
+                        help="Number of StackLSTM and buffer-side LSTM layers. (default=2)")
+    parser.add_argument('-stack_input_dim', type=int, default=60,
+                        help="Size of the token composition embedding. (default=60)")
+    parser.add_argument('-action_emb_dim', type=int, default=16,
+                        help="Size of the transition action embedding. (default=16)")
+    parser.add_argument("--transSys", default=1, type=int,
+                        help="Choice of transition system: 0 for ASd, 1 for AER, 2 for AES, 3 for AH. (default=1)")
 
 
 def preprocess_opts(parser):
