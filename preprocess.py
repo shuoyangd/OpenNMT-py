@@ -28,8 +28,10 @@ parser.add_argument('-valid_src', required=True,
                     help="Path to the validation source data")
 parser.add_argument('-valid_tgt', required=True,
                     help="Path to the validation target data")
-parser.add_argument('-aux_tgt', default=None,
-                  help="Path to the auxiliary target data")
+parser.add_argument('-aux_train_tgt', default=None,
+                  help="Path to the auxiliary training target data")
+parser.add_argument('-aux_valid_tgt', default=None,
+                  help="Path to the auxiliary validation target data")
 
 parser.add_argument('-save_data', required=True,
                     help="Output file for the prepared data")
@@ -59,12 +61,12 @@ def main():
 
     fields = onmt.IO.ONMTDataset.get_fields(nFeatures)
     print("Building Training...")
-    train = onmt.IO.ONMTDataset(opt.train_src, opt.train_tgt, fields, opt)
+    train = onmt.IO.ONMTDataset(opt.train_src, opt.train_tgt, opt.aux_train_tgt, fields, opt)
     print("Building Vocab...")
     onmt.IO.ONMTDataset.build_vocab(train, opt)
 
     print("Building Valid...")
-    valid = onmt.IO.ONMTDataset(opt.valid_src, opt.valid_tgt, fields, opt)
+    valid = onmt.IO.ONMTDataset(opt.valid_src, opt.valid_tgt, opt.aux_valid_tgt, fields, opt)
     print("Saving train/valid/fields")
 
     # Can't save fields, so remove/reconstruct at training time.

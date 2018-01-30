@@ -110,7 +110,7 @@ class ONMTDataset(torchtext.data.Dataset):
         "Sort in reverse size order"
         return -len(ex.src)
 
-    def __init__(self, src_path, tgt_path, fields, opt,
+    def __init__(self, src_path, tgt_path, aux_tgt_path, fields, opt,
                  src_img_dir=None, **kwargs):
         """
         Create a TranslationDataset given paths and fields.
@@ -148,9 +148,9 @@ class ONMTDataset(torchtext.data.Dataset):
         else:
             tgt_examples = None
 
-        if opt.aux_tgt is not None:
+        if aux_tgt_path is not None:
             tgt_truncate = 0 if opt is None else opt.tgt_seq_length_trunc
-            aux_tgt_data = self._read_corpus_file(opt.aux_tgt, tgt_truncate)
+            aux_tgt_data = self._read_corpus_file(aux_tgt_path, tgt_truncate)
             aux_tgt_examples = self._construct_examples(aux_tgt_data, "aux_tgt")
         else:
             aux_tgt_examples = None
@@ -356,7 +356,7 @@ class ONMTDataset(torchtext.data.Dataset):
         return fields
 
     @staticmethod
-    def build_vocab(train, opt):
+    def build_vocab(train, aux_train, opt):
         fields = train.fields
         fields["src"].build_vocab(train, max_size=opt.src_vocab_size,
                                   min_freq=opt.src_words_min_frequency)
@@ -365,8 +365,8 @@ class ONMTDataset(torchtext.data.Dataset):
         fields["tgt"].build_vocab(train, max_size=opt.tgt_vocab_size,
                                   min_freq=opt.tgt_words_min_frequency)
 
-        if opt.aux_tgt is not None:
-            fields["aux_tgt"].build_vocab(train, max_size=opt.tgt_vocab_size,
+        if aux_train is not None:
+            fields["aux_tgt"].build_vocab(aux_train, max_size=opt.tgt_vocab_size,
                                           min_freq=opt.tgt_words_min_frequency)
 
         # Merge the input and output vocabularies.
