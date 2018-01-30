@@ -28,6 +28,8 @@ parser.add_argument('-valid_src', required=True,
                     help="Path to the validation source data")
 parser.add_argument('-valid_tgt', required=True,
                     help="Path to the validation target data")
+parser.add_argument('-aux_tgt', default=None,
+                  help="Path to the auxiliary target data")
 
 parser.add_argument('-save_data', required=True,
                     help="Output file for the prepared data")

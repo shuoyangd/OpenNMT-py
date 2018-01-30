@@ -68,7 +68,7 @@ def make_features(batch, side):
         A sequence of src/tgt tensors with optional feature tensors
         of size (len x batch).
     """
-    assert side in ['src', 'tgt']
+    assert side in ['src', 'tgt', "aux_tgt"]
     if isinstance(batch.__dict__[side], tuple):
         data = batch.__dict__[side][0]
     else:
@@ -111,7 +111,7 @@ class ONMTDataset(torchtext.data.Dataset):
         return -len(ex.src)
 
     def __init__(self, src_path, tgt_path, fields, opt,
-                 src_img_dir=None, aux_tgt_path=None, **kwargs):
+                 src_img_dir=None, **kwargs):
         """
         Create a TranslationDataset given paths and fields.
 
@@ -121,7 +121,6 @@ class ONMTDataset(torchtext.data.Dataset):
         fields:
         src_img_dir: if not None, uses images instead of text for the
                      source. TODO: finish
-        aux_tgt_path: if an auxiliary target sequence file is provided for multi-task training, pass it here.
         """
         if src_img_dir:
             self.type_ = "img"
@@ -149,9 +148,9 @@ class ONMTDataset(torchtext.data.Dataset):
         else:
             tgt_examples = None
 
-        if aux_tgt_path is not None:
+        if opt.aux_tgt is not None:
             tgt_truncate = 0 if opt is None else opt.tgt_seq_length_trunc
-            aux_tgt_data = self._read_corpus_file(aux_tgt_path, tgt_truncate)
+            aux_tgt_data = self._read_corpus_file(opt.aux_tgt, tgt_truncate)
             aux_tgt_examples = self._construct_examples(aux_tgt_data, "aux_tgt")
         else:
             aux_tgt_examples = None
@@ -226,7 +225,7 @@ class ONMTDataset(torchtext.data.Dataset):
                 yield extract_features(line)
 
     def _construct_examples(self, lines, side):
-        assert side in ["src", "tgt"]
+        assert side in ["src", "tgt", "aux_tgt"]
         for line in lines:
             words, feats, _ = line
             example_dict = {side: words}
@@ -285,7 +284,7 @@ class ONMTDataset(torchtext.data.Dataset):
 
     @staticmethod
     def collect_features(fields, side="src"):
-        assert side in ["src", "tgt"]
+        assert side in ["src", "tgt", "aux_tgt"]
         feats = []
         for j in count():
             key = side + "_feat_" + str(j)
@@ -319,6 +318,10 @@ class ONMTDataset(torchtext.data.Dataset):
                 torchtext.data.Field(pad_token=PAD_WORD)
 
         fields["tgt"] = torchtext.data.Field(
+            init_token=BOS_WORD, eos_token=EOS_WORD,
+            pad_token=PAD_WORD)
+
+        fields["aux_tgt"] = torchtext.data.Field(
             init_token=BOS_WORD, eos_token=EOS_WORD,
             pad_token=PAD_WORD)
 
@@ -361,6 +364,10 @@ class ONMTDataset(torchtext.data.Dataset):
             fields["src_feat_" + str(j)].build_vocab(train)
         fields["tgt"].build_vocab(train, max_size=opt.tgt_vocab_size,
                                   min_freq=opt.tgt_words_min_frequency)
+
+        if opt.aux_tgt is not None:
+            fields["aux_tgt"].build_vocab(train, max_size=opt.tgt_vocab_size,
+                                          min_freq=opt.tgt_words_min_frequency)
 
         # Merge the input and output vocabularies.
         if opt.share_vocab:
