@@ -7,13 +7,12 @@ import torch.nn as nn
 import onmt
 import onmt.Models
 import onmt.modules
-from nmt.onmt.IO import ONMTDataset
-from nmt.onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
+from onmt.IO import ONMTDataset
+from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
                         StdRNNDecoder, InputFeedRNNDecoder
-from nmt.onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
+from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
-                         CNNEncoder, CNNDecoder
-from lutra.model.StackLSTMGenerator import StackLSTMGenerator
+                         CNNEncoder, CNNDecoder, StackLSTMGenerator
 
 
 def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):

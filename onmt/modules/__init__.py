@@ -1,22 +1,22 @@
-from nmt.onmt.modules.UtilClass import LayerNorm, Bottle, BottleLinear, \
+from onmt.modules.UtilClass import LayerNorm, Bottle, BottleLinear, \
     BottleLayerNorm, BottleSoftmax, Elementwise
-from nmt.onmt.modules.Gate import ContextGateFactory
-from nmt.onmt.modules.GlobalAttention import GlobalAttention
-from nmt.onmt.modules.ConvMultiStepAttention import ConvMultiStepAttention
-from nmt.onmt.modules.ImageEncoder import ImageEncoder
-from nmt.onmt.modules.CopyGenerator import CopyGenerator, CopyGeneratorLossCompute
-from nmt.onmt.modules.StructuredAttention import MatrixTree
-from nmt.onmt.modules.Transformer import TransformerEncoder, TransformerDecoder
-from nmt.onmt.modules.Conv2Conv import CNNEncoder, CNNDecoder
-from nmt.onmt.modules.MultiHeadedAttn import MultiHeadedAttention
-from nmt.onmt.modules.StackedRNN import StackedLSTM, StackedGRU
-from nmt.onmt.modules.Embeddings import Embeddings
-from nmt.onmt.modules.WeightNorm import WeightNormConv2d
+from onmt.modules.Gate import ContextGateFactory
+from onmt.modules.GlobalAttention import GlobalAttention
+from onmt.modules.ConvMultiStepAttention import ConvMultiStepAttention
+from onmt.modules.ImageEncoder import ImageEncoder
+from onmt.modules.CopyGenerator import CopyGenerator, CopyGeneratorLossCompute
+from onmt.modules.StructuredAttention import MatrixTree
+from onmt.modules.Transformer import TransformerEncoder, TransformerDecoder
+from onmt.modules.Conv2Conv import CNNEncoder, CNNDecoder
+from onmt.modules.MultiHeadedAttn import MultiHeadedAttention
+from onmt.modules.StackedRNN import StackedLSTM, StackedGRU
+from onmt.modules.Embeddings import Embeddings
+from onmt.modules.WeightNorm import WeightNormConv2d
 
-from nmt.onmt.modules.SRU import check_sru_requirement
+from onmt.modules.SRU import check_sru_requirement
 can_use_sru = check_sru_requirement()
 if can_use_sru:
-    from nmt.onmt.modules.SRU import SRU
+    from onmt.modules.SRU import SRU
 
 
 # For flake8 compatibility.
