@@ -9,7 +9,7 @@ from torch.autograd import Variable
 
 class HybridOrderedIterator:
     def __init__(self, train, batch_size, utts_file, feats_file, vocab_file):
-      self.reader = lazy_io.read_dict_scp(feats_file)
+      # self.reader = lazy_io.read_dict_scp(feats_file)
       self.utts_file = utts_file
       self.feats_file = feats_file
       self.tgt_vocab = torch.load(vocab_file)[1][1]
@@ -31,16 +31,20 @@ class HybridOrderedIterator:
        with open(self.utts_file, "r") as f:
           for linen, l in enumerate(f):
               idx, utt = l.strip().split(None, 1)
-              af = torch.FloatTensor(self.reader[idx]).unsqueeze(1)
-              phn = torch.zeros(self.reader[idx].shape[0]).long().unsqueeze(1)
-              utt_ids = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt.split() ]).unsqueeze(1)
+              # af = torch.FloatTensor(self.reader[idx]).unsqueeze(1)
+              af = torch.rand(1, 1, 123)
+              # phn = torch.zeros(self.reader[idx].shape[0]).long().unsqueeze(1)
+              utt_toks = ["<s>"] + utt.split() + ["</s>"]
+              utt_ids = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt_toks ]).unsqueeze(1)
               # flags = torch.ByteTensor([1, 0]).unsqueeze(1)
               flags = torch.ByteTensor([0, 1]).unsqueeze(1)
-              phn = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt.split() ]).unsqueeze(1)
-              sl = self.reader[idx].shape[0]
+              phn = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt_toks ]).unsqueeze(1)
+              sequence_length = phn.size(0)
+              sl = sequence_length
+              # sl = self.reader[idx].shape[0]
               tl = utt_ids.size(0)
-              if linen > 1:
-                break      
+              # if linen > 1:
+              #   break      
               yield af, phn, flags, sl, tl, utt_ids
 
 
@@ -77,8 +81,10 @@ class HybridOrderedIterator:
         minibatch = []
         max_len = [0, 0]
         for ex in data:
-            max_len[0] = ex[0].size(0) if ex[0].size(0) > max_len[0] else max_len[0]
-            max_len[1] = ex[-1].size(0) if ex[-1].size(0) > max_len[1] else max_len[1]
+            af_, phn_, flag_, sl_, tl_, utt_ = ex
+            max_len[0] = af_.size(0) if af_.size(0) > max_len[0] else max_len[0]
+            max_len[0] = phn_.size(0) if phn_.size(0) > max_len[0] else max_len[0]
+            max_len[1] = utt_.size(0) if utt_.size(0) > max_len[1] else max_len[1]
             minibatch.append(ex)
             if len(minibatch) >= batch_size:
                 merged_minibatch = []
@@ -128,18 +134,17 @@ class HybridOrderedIterator:
         batches.
         """
         random_shuffler = random.shuffle
-        print("outer")
+        # print("outer")
         for idx_o, p in enumerate(self.batch(data, self.batch_size * bucket_factor, False)):
-            print("middle", idx_o)
-            print("type(p) = " + str(type(p)))
-            print("len(p) = " + str(len(p)))
+            # print("middle", idx_o)
+            # print("type(p) = " + str(type(p)))
+            # print("len(p) = " + str(len(p)))
             p_iter = self.batch(sorted(p, key=lambda x: -x[3]), self.batch_size, True)
             # p_iter = self.batch(p, self.batch_size, True)
-            print(p_iter)
             # TODO: how to do random_shuffle
             # for b in random_shuffler(list(p_iter)):
             p_list = list(p_iter)
-            print(len(p_list))
+            # print(len(p_list))
             if do_shuffle:
               random_shuffler(p_list)
             # assert len(p_list) == 100
@@ -147,7 +152,7 @@ class HybridOrderedIterator:
             # assert len(p_list[0][0]) == 6
             # for b in random_shuffler(list(p_iter)):
             for b in p_list:
-                print("inner")
+                # print("inner")
                 af_batch, phn_batch, flag_batch, sl_batch, tl_batch, utt_batch = zip(*b)
                 af_batch = Variable(torch.cat(af_batch, dim=1))
                 phn_batch = Variable(torch.cat(phn_batch, dim=1)).unsqueeze(2)
@@ -155,8 +160,8 @@ class HybridOrderedIterator:
                 utt_batch = Variable(torch.cat(utt_batch, dim=1)).unsqueeze(2)
                 sl_batch = torch.LongTensor(list(sl_batch))
                 tl_batch = torch.LongTensor(list(tl_batch))
-                assert sl_batch.size(0) == tl_batch.size(0) == af_batch.size(1) == phn_batch.size(1) == \
-                       flag_batch.size(1) == utt_batch.size(1)
+                # assert sl_batch.size(0) == tl_batch.size(0) == af_batch.size(1) == phn_batch.size(1) == \
+                #        flag_batch.size(1) == utt_batch.size(1)
                 yield af_batch, phn_batch, flag_batch, sl_batch, tl_batch, utt_batch
                 # yield b
 
