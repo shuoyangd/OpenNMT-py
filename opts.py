@@ -39,7 +39,7 @@ def model_opts(parser):
 
     # RNN Options
     parser.add_argument('-encoder_type', type=str, default='rnn',
-                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn'],
+                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid'],
                         help="""Type of encoder layer to use.""")
     parser.add_argument('-decoder_type', type=str, default='rnn',
                         choices=['rnn', 'transformer', 'cnn'],
@@ -128,6 +128,10 @@ def preprocess_opts(parser):
                         help="Create dynamic dictionaries")
     parser.add_argument('-share_vocab', action='store_true',
                         help="Share source and target vocabulary")
+
+    # Kaldi file options
+    parser.add_argument('-start_idx', type=int, default=1,
+                        help='Skip the initial tag/token in Kaldi utterance file.')
 
 
 def train_opts(parser):

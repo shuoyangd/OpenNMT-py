@@ -101,6 +101,47 @@ class RNNEncoder(EncoderBase):
         return hidden_t, outputs
 
 
+class HybridEncoder(RNNEncoder):
+    def __init__(self, rnn_type, bidirectional, num_layers,
+                 hidden_size, dropout, embeddings):
+      super(HybridEncoder, self).__init__(rnn_type, bidirectional, num_layers,
+                                          hidden_size, dropout, embeddings)
+
+    def _check_args(input, lengths=None, hidden=None):
+        input_frame, input_phone, input_flag = input
+        s_len, batch, emb_dim = input_frame.size()
+        # TODO: check with lengths
+        print(input_flag.size())
+        print(input_frame.size())
+        assert input_flag.size() == (s_len, batch)
+        assert input_frame.size() == (s_len, batch, emb_dim)
+
+    def forward(self, input, lengths=None, hidden=None):
+        """ See EncoderBase.forward() for description of args and returns."""
+        # TODO
+        # self._check_args(input, lengths, hidden)
+        input_frame, input_phone, input_flag = input
+
+        emb = self.embeddings(input_phone)
+        s_len, batch, emb_dim = emb.size()
+        iflag = input_flag[0, :].unsqueeze(0).unsqueeze(2).float()
+        final_input = (input_frame * iflag) + (emb * (1 - iflag))
+
+        packed_emb = final_input
+        if lengths is not None and not self.no_pack_padded_seq:
+            # Lengths data is wrapped inside a Variable.
+            lengths = lengths.view(-1).tolist()
+            packed_emb = pack(final_input, lengths)
+
+        outputs, hidden_t = self.rnn(packed_emb, hidden)
+
+        if lengths is not None and not self.no_pack_padded_seq:
+            outputs = unpack(outputs)[0]
+
+        return hidden_t, outputs
+
+
+
 class RNNDecoderBase(nn.Module):
     """
     RNN decoder base class.

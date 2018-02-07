@@ -130,9 +130,9 @@ class ONMTDataset(torchtext.data.Dataset):
         if self.type_ == "text":
             self.src_vocabs = []
             src_truncate = 0 if opt is None else opt.src_seq_length_trunc
-            src_point = next(self._read_corpus_file(src_path, src_truncate))
+            src_point = next(self._read_corpus_file(src_path, src_truncate, 0))
             self.nfeatures = src_point[2]
-            src_data = self._read_corpus_file(src_path, src_truncate)
+            src_data = self._read_corpus_file(src_path, src_truncate, 0)
             src_examples = self._construct_examples(src_data, "src")
         else:
             # TODO finish this.
@@ -141,7 +141,7 @@ class ONMTDataset(torchtext.data.Dataset):
 
         if tgt_path is not None:
             tgt_truncate = 0 if opt is None else opt.tgt_seq_length_trunc
-            tgt_data = self._read_corpus_file(tgt_path, tgt_truncate)
+            tgt_data = self._read_corpus_file(tgt_path, tgt_truncate, opt.start_idx)
             # assert len(src_data) == len(tgt_data), \
             #     "Len src and tgt do not match"
             tgt_examples = self._construct_examples(tgt_data, "tgt")
@@ -199,7 +199,7 @@ class ONMTDataset(torchtext.data.Dataset):
             filter_pred if opt is not None
             else None)
 
-    def _read_corpus_file(self, path, truncate):
+    def _read_corpus_file(self, path, truncate, start_idx):
         """
         path: location of a src or tgt file
         truncate: maximum sequence length (0 for unlimited)
@@ -207,7 +207,7 @@ class ONMTDataset(torchtext.data.Dataset):
         returns: (word, features, nfeat) triples for each line
         """
         with codecs.open(path, "r", "utf-8") as corpus_file:
-            lines = (line.split() for line in corpus_file)
+            lines = (line.split()[start_idx:] for line in corpus_file)
             if truncate:
                 lines = (line[:truncate] for line in lines)
             for line in lines:

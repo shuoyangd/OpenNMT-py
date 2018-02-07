@@ -9,7 +9,7 @@ import onmt.Models
 import onmt.modules
 from onmt.IO import ONMTDataset
 from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
-                        StdRNNDecoder, InputFeedRNNDecoder
+                        StdRNNDecoder, InputFeedRNNDecoder, HybridEncoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder
@@ -65,9 +65,12 @@ def make_encoder(opt, embeddings):
                           opt.dropout, embeddings)
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)
+    elif opt.encoder_type == "hybrid":
+        return HybridEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
+                             opt.rnn_size, opt.dropout, embeddings)
     else:
         # "rnn" or "brnn"
-        return RNNEncoder(opt.rnn_type, opt.brnn, opt.dec_layers,
+        return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
                           opt.rnn_size, opt.dropout, embeddings)
 
 

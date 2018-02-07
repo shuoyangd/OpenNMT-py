@@ -98,15 +98,26 @@ class Trainer(object):
         report_stats = Statistics()
 
         for i, batch in enumerate(self.train_iter):
-            target_size = batch.tgt.size(0)
+            if isinstance(batch, tuple):
+              target_size = batch[-1].size(0)
+            else:
+              target_size = batch.tgt.size(0)
             # Truncated BPTT
             trunc_size = self.trunc_size if self.trunc_size else target_size
 
             dec_state = None
-            _, src_lengths = batch.src
+            if isinstance(batch, tuple):
+              src_lengths = batch[3]
+            else:
+              _, src_lengths = batch.src
 
-            src = onmt.IO.make_features(batch, 'src')
-            tgt_outer = onmt.IO.make_features(batch, 'tgt')
+            # TODO: fix the extra lengths in the train_iter
+            if isinstance(batch, tuple):
+              src = (batch[0], batch[1], batch[2])
+              tgt_outer = batch[-1]
+            else:
+              src = onmt.IO.make_features(batch, 'src')
+              tgt_outer = onmt.IO.make_features(batch, 'tgt')
             report_stats.n_src_words += src_lengths.sum()
 
             for j in range(0, target_size-1, trunc_size):
@@ -147,7 +158,11 @@ class Trainer(object):
         stats = Statistics()
 
         for batch in self.valid_iter:
-            _, src_lengths = batch.src
+            if isinstance(batch, tuple):
+              src_lengths = batch[3]
+            else:
+              _, src_lengths = batch.src
+
             src = onmt.IO.make_features(batch, 'src')
             tgt = onmt.IO.make_features(batch, 'tgt')
 

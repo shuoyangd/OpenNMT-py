@@ -100,6 +100,10 @@ def make_train_data_iter(train_data, opt):
                 repeat=False)
 
 
+def make_hybrid_train_data_iter(train_data, opt):
+   return onmt.modules.HybridOrderedIterator(True, opt.batch_size, opt.data + ".train.tgt", opt.data + ".feats.train.pt", opt.data + ".vocab.pt")
+
+
 def make_valid_data_iter(valid_data, opt):
     """
     This returns user-defined validate data iterator for the trainer
@@ -111,6 +115,10 @@ def make_valid_data_iter(valid_data, opt):
                 dataset=valid_data, batch_size=opt.batch_size,
                 device=opt.gpuid[0] if opt.gpuid else -1,
                 train=False, sort=True)
+
+
+def make_hybrid_valid_data_iter(train_data, opt):
+   return onmt.modules.HybridOrderedIterator(False, opt.batch_size, opt.data + ".dev.tgt", opt.data + ".feats.dev.pt", opt.data + ".vocab.pt")
 
 
 def make_loss_compute(model, tgt_vocab, dataset, opt):
@@ -133,8 +141,12 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
 
 def train_model(model, train_data, valid_data, fields, optim):
 
-    train_iter = make_train_data_iter(train_data, opt)
-    valid_iter = make_valid_data_iter(valid_data, opt)
+    if opt.encoder_type == "hybrid":
+      train_iter = make_hybrid_train_data_iter(train_data, opt)
+      valid_iter = make_hybrid_valid_data_iter(valid_data, opt)
+    else:
+      train_iter = make_train_data_iter(train_data, opt)
+      valid_iter = make_valid_data_iter(valid_data, opt)
 
     train_loss = make_loss_compute(model, fields["tgt"].vocab,
                                    train_data, opt)
