@@ -130,6 +130,8 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
     if opt.copy_attn:
         compute = onmt.modules.CopyGeneratorLossCompute(
             model.generator, tgt_vocab, dataset, opt.copy_attn_force)
+    elif opt.encoder_type == "hybrid":
+        compute = onmt.Loss.ASRLossCompute(model.generator, tgt_vocab)
     else:
         compute = onmt.Loss.NMTLossCompute(model.generator, tgt_vocab)
 

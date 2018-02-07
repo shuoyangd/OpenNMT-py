@@ -98,6 +98,66 @@ class LossComputeBase(nn.Module):
         return v.view(-1, batch_size, v.size(1))
 
 
+class ASRLossCompute(LossComputeBase):
+    """
+    Standard NMT Loss Computation.
+    """
+    def __init__(self, generator, tgt_vocab):
+        super(ASRLossCompute, self).__init__(generator, tgt_vocab)
+
+        weight = torch.ones(len(tgt_vocab))
+        weight[self.padding_idx] = 0
+        self.criterion = nn.NLLLoss(weight, size_average=False)
+
+    def make_shard_state(self, batch, output, range_, attns=None):
+        """ See base class for args description. """
+        return {
+            "output": output,
+            "target": batch[-1][range_[0] + 1: range_[1]],
+        }
+
+    def compute_loss(self, batch, output, target):
+        """ See base class for args description. """
+        scores = self.generator(self.bottle(output))
+        scores_data = scores.data.clone()
+
+        target = target.view(-1)
+        target_data = target.data.clone()
+
+        loss = self.criterion(scores, target)
+        loss_data = loss.data.clone()
+
+        stats = self.stats(loss_data, scores_data, target_data)
+
+        return loss, stats
+
+    def monolithic_compute_loss(self, batch, output, attns):
+        """
+        Compute the loss monolithically, not dividing into shards.
+        """
+        range_ = (0, batch[-1].size(0))
+        shard_state = self.make_shard_state(batch, output, range_, attns)
+        _, batch_stats = self.compute_loss(batch, **shard_state)
+
+        return batch_stats
+
+    def sharded_compute_loss(self, batch, output, attns,
+                             cur_trunc, trunc_size, shard_size):
+        """
+        Compute the loss in shards for efficiency.
+        """
+        batch_stats = onmt.Statistics()
+        range_ = (cur_trunc, cur_trunc + trunc_size)
+        shard_state = self.make_shard_state(batch, output, range_, attns)
+
+        for shard in shards(shard_state, shard_size):
+            loss, stats = self.compute_loss(batch, **shard)
+            loss.div(batch[0].size(1)).backward()
+            batch_stats.update(stats)
+
+        return batch_stats
+
+
 class NMTLossCompute(LossComputeBase):
     """
     Standard NMT Loss Computation.
