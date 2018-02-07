@@ -107,25 +107,29 @@ class HybridEncoder(RNNEncoder):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, num_layers,
                                           hidden_size, dropout, embeddings)
 
-    def _check_args(input, lengths=None, hidden=None):
+    def _check_args(self, input, lengths=None, hidden=None):
         input_frame, input_phone, input_flag = input
         s_len, batch, emb_dim = input_frame.size()
         # TODO: check with lengths
         print(input_flag.size())
         print(input_frame.size())
-        assert input_flag.size() == (s_len, batch)
+        assert input_flag.size() == (2, batch)
+        assert input_phone.size() == (s_len, batch, 1)
         assert input_frame.size() == (s_len, batch, emb_dim)
 
     def forward(self, input, lengths=None, hidden=None):
         """ See EncoderBase.forward() for description of args and returns."""
         # TODO
-        # self._check_args(input, lengths, hidden)
+        self._check_args(input, lengths, hidden)
         input_frame, input_phone, input_flag = input
 
         emb = self.embeddings(input_phone)
         s_len, batch, emb_dim = emb.size()
         iflag = input_flag[0, :].unsqueeze(0).unsqueeze(2).float()
         final_input = (input_frame * iflag) + (emb * (1 - iflag))
+        print(torch.norm(emb))
+        print(torch.norm())
+        assert torch.norm(emb) == torch.norm(final_input)
 
         packed_emb = final_input
         if lengths is not None and not self.no_pack_padded_seq:
@@ -139,7 +143,6 @@ class HybridEncoder(RNNEncoder):
             outputs = unpack(outputs)[0]
 
         return hidden_t, outputs
-
 
 
 class RNNDecoderBase(nn.Module):

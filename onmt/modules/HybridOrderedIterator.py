@@ -28,16 +28,19 @@ class HybridOrderedIterator:
 
 
     def data(self):
-       idx = 0
        with open(self.utts_file, "r") as f:
           for linen, l in enumerate(f):
               idx, utt = l.strip().split(None, 1)
               af = torch.FloatTensor(self.reader[idx]).unsqueeze(1)
               phn = torch.zeros(self.reader[idx].shape[0]).long().unsqueeze(1)
               utt_ids = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt.split() ]).unsqueeze(1)
-              flags = torch.ByteTensor([1, 0]).unsqueeze(1)
+              # flags = torch.ByteTensor([1, 0]).unsqueeze(1)
+              flags = torch.ByteTensor([0, 1]).unsqueeze(1)
+              phn = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt.split() ]).unsqueeze(1)
               sl = self.reader[idx].shape[0]
               tl = utt_ids.size(0)
+              if linen > 1:
+                break      
               yield af, phn, flags, sl, tl, utt_ids
 
 
@@ -45,9 +48,11 @@ class HybridOrderedIterator:
        if self.train:
             self.batches = self.pool(self.data())
        else:
-            self.batches = []
-            for b in self.batch(self.data(), self.batch_size, True):
-                self.batches.append(sorted(b))
+            # self.batches = []
+            # for b in self.batch(self.data(), self.batch_size, True):
+            #     print("type(b) = " + str(type(b)))
+            #     self.batches.append(sorted(b, key=lambda x: -x[3]))
+            self.batches = self.pool(self.data(), False, 1)
 
     """
     def batch(data, batch_size, batch_size_fn=None):
@@ -86,7 +91,22 @@ class HybridOrderedIterator:
                     else:
                       pass
                     merged_minibatch.append((af, phn, flag, sl, tl, utt))
+                minibatch = []
                 yield merged_minibatch
+
+        if len(minibatch) > 0:
+            merged_minibatch = []
+            for mini_ex in minibatch:
+                af, phn, flag, sl, tl, utt = mini_ex
+                if pad:
+                    af = torch.cat([af, torch.zeros(max_len[0] - af.size(0), 1, af.size(2))], dim=0)
+                    phn = torch.cat([phn, torch.zeros(max_len[0] - phn.size(0), 1).long()], dim=0)
+                    utt = torch.cat([utt, torch.zeros(max_len[1] - utt.size(0), 1).long()], dim=0)
+                else:
+                  pass
+                merged_minibatch.append((af, phn, flag, sl, tl, utt))
+            minibatch = []
+            yield merged_minibatch
                 
                 # af_batch, phn_batch, flag_batch, utt_batch = zip(*padded_minibatch)
                 # af_batch = torch.cat(af_batch, dim=1)
@@ -101,22 +121,32 @@ class HybridOrderedIterator:
                 # yield af_batch, phn_batch, flag_batch, sl_batch, tl_batch, utt_batch
     
     
-    def pool(self, data, random_shuffler=None):
+    def pool(self, data, do_shuffle=True, bucket_factor = 100):
         """Sort within buckets, then batch, then shuffle batches.
         Partitions data into chunks of size 100*batch_size, sorts examples within
         each chunk using sort_key, then batch these examples and shuffle the
         batches.
         """
-        if random_shuffler is None:
-            random_shuffler = random.shuffle
+        random_shuffler = random.shuffle
         print("outer")
-        for idx_o, p in enumerate(self.batch(data, self.batch_size * 100, False)):
+        for idx_o, p in enumerate(self.batch(data, self.batch_size * bucket_factor, False)):
             print("middle", idx_o)
-            p_iter = self.batch(sorted(p, key=lambda p: -p[3]), self.batch_size, True)
+            print("type(p) = " + str(type(p)))
+            print("len(p) = " + str(len(p)))
+            p_iter = self.batch(sorted(p, key=lambda x: -x[3]), self.batch_size, True)
+            # p_iter = self.batch(p, self.batch_size, True)
             print(p_iter)
             # TODO: how to do random_shuffle
             # for b in random_shuffler(list(p_iter)):
-            for b in p_iter:
+            p_list = list(p_iter)
+            print(len(p_list))
+            if do_shuffle:
+              random_shuffler(p_list)
+            # assert len(p_list) == 100
+            # assert len(p_list[0]) == 8
+            # assert len(p_list[0][0]) == 6
+            # for b in random_shuffler(list(p_iter)):
+            for b in p_list:
                 print("inner")
                 af_batch, phn_batch, flag_batch, sl_batch, tl_batch, utt_batch = zip(*b)
                 af_batch = Variable(torch.cat(af_batch, dim=1))

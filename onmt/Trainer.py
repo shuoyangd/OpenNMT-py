@@ -160,11 +160,12 @@ class Trainer(object):
         for batch in self.valid_iter:
             if isinstance(batch, tuple):
               src_lengths = batch[3]
+              src = (batch[0], batch[1], batch[2])
+              tgt = batch[-1]
             else:
               _, src_lengths = batch.src
-
-            src = onmt.IO.make_features(batch, 'src')
-            tgt = onmt.IO.make_features(batch, 'tgt')
+              src = onmt.IO.make_features(batch, 'src')
+              tgt = onmt.IO.make_features(batch, 'tgt')
 
             # F-prop through the model.
             outputs, attns, _ = self.model(src, tgt, src_lengths)
