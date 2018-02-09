@@ -1,5 +1,4 @@
 from __future__ import division
-
 import os
 import sys
 import argparse
@@ -26,9 +25,9 @@ if opt.word_vec_size != -1:
     opt.src_word_vec_size = opt.word_vec_size
     opt.tgt_word_vec_size = opt.word_vec_size
 
-if opt.layers != -1:
-    opt.enc_layers = opt.layers
-    opt.dec_layers = opt.layers
+#if opt.layers != -1:
+#    opt.enc_layers = opt.layers
+#    opt.dec_layers = opt.layers
 
 opt.brnn = (opt.encoder_type == "brnn" or opt.encoder_type == "hybrid")
 if opt.seed > 0:
@@ -42,6 +41,8 @@ if torch.cuda.is_available() and not opt.gpuid:
 
 if opt.gpuid:
     cuda.set_device(opt.gpuid[0])
+    tmp = torch.ByteTensor([0])
+    tmp.cuda()
     if opt.seed > 0:
         torch.cuda.manual_seed(opt.seed)
 
@@ -101,7 +102,13 @@ def make_train_data_iter(train_data, opt):
 
 
 def make_hybrid_train_data_iter(train_data, opt):
-   return onmt.modules.HybridOrderedIterator(True, opt.batch_size, opt.data + ".train.tgt", opt.data + ".feats.train.pt", opt.data + ".vocab.pt")
+   return onmt.modules.HybridOrderedIterator(
+           train_mode = True, 
+           batch_size = opt.batch_size, 
+           utts_file = opt.data + ".train.tgt", 
+           frames_file = opt.data + ".feats.train.pt", 
+           vocab_file = opt.data + ".vocab.pt",
+           device = opt.gpuid[0] if opt.gpuid else -1)
 
 
 def make_valid_data_iter(valid_data, opt):
@@ -118,7 +125,13 @@ def make_valid_data_iter(valid_data, opt):
 
 
 def make_hybrid_valid_data_iter(train_data, opt):
-   return onmt.modules.HybridOrderedIterator(False, opt.batch_size, opt.data + ".dev.tgt", opt.data + ".feats.dev.pt", opt.data + ".vocab.pt")
+   return onmt.modules.HybridOrderedIterator(
+           train_mode = False, 
+           batch_size = opt.batch_size, 
+           utts_file = opt.data + ".valid.tgt", 
+           frames_file = opt.data + ".feats.valid.pt", 
+           vocab_file = opt.data + ".vocab.pt",
+           device = opt.gpuid[0] if opt.gpuid else -1)
 
 
 def make_loss_compute(model, tgt_vocab, dataset, opt):

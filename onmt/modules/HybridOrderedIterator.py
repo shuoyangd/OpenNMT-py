@@ -1,6 +1,6 @@
-import sys
-import codecs
-import argparse
+#import sys
+#import codecs
+#import argparse
 import lazy_io
 import math
 import random
@@ -8,13 +8,14 @@ import torch
 from torch.autograd import Variable
 
 class HybridOrderedIterator:
-    def __init__(self, train, batch_size, utts_file, feats_file, vocab_file):
-      # self.reader = lazy_io.read_dict_scp(feats_file)
+    def __init__(self, train_mode, batch_size, utts_file, frames_file, vocab_file, device):
+      # self.frame_reader = lazy_io.read_dict_scp(frames_file)
       self.utts_file = utts_file
-      self.feats_file = feats_file
+      self.frames_file = frames_file
       self.tgt_vocab = torch.load(vocab_file)[1][1]
-      self.train = train
+      self.train_mode = train_mode
       self.batch_size = batch_size
+      self.device = device
 
 
     def __len__(self):
@@ -31,9 +32,9 @@ class HybridOrderedIterator:
        with open(self.utts_file, "r") as f:
           for linen, l in enumerate(f):
               idx, utt = l.strip().split(None, 1)
-              # af = torch.FloatTensor(self.reader[idx]).unsqueeze(1)
+              # af = torch.FloatTensor(self.frame_reader[idx]).unsqueeze(1)
               af = torch.rand(1, 1, 123)
-              # phn = torch.zeros(self.reader[idx].shape[0]).long().unsqueeze(1)
+              # phn = torch.zeros(self.frame_reader[idx].shape[0]).long().unsqueeze(1)
               utt_toks = ["<s>"] + utt.split() + ["</s>"]
               utt_ids = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt_toks ]).unsqueeze(1)
               # flags = torch.ByteTensor([1, 0]).unsqueeze(1)
@@ -41,7 +42,7 @@ class HybridOrderedIterator:
               phn = torch.LongTensor([ self.tgt_vocab.stoi[utt_tok] for utt_tok in utt_toks ]).unsqueeze(1)
               sequence_length = phn.size(0)
               sl = sequence_length
-              # sl = self.reader[idx].shape[0]
+              # sl = self.frame_reader[idx].shape[0]
               tl = utt_ids.size(0)
               # if linen > 1:
               #   break      
@@ -49,13 +50,9 @@ class HybridOrderedIterator:
 
 
     def create_batches(self):
-       if self.train:
+       if self.train_mode:
             self.batches = self.pool(self.data())
        else:
-            # self.batches = []
-            # for b in self.batch(self.data(), self.batch_size, True):
-            #     print("type(b) = " + str(type(b)))
-            #     self.batches.append(sorted(b, key=lambda x: -x[3]))
             self.batches = self.pool(self.data(), False, 1)
 
     """
@@ -105,6 +102,7 @@ class HybridOrderedIterator:
             for mini_ex in minibatch:
                 af, phn, flag, sl, tl, utt = mini_ex
                 if pad:
+                    #TODO: use pytorch's built in padder torch.nn.utils.rnn.pad_sequence
                     af = torch.cat([af, torch.zeros(max_len[0] - af.size(0), 1, af.size(2))], dim=0)
                     phn = torch.cat([phn, torch.zeros(max_len[0] - phn.size(0), 1).long()], dim=0)
                     utt = torch.cat([utt, torch.zeros(max_len[1] - utt.size(0), 1).long()], dim=0)
@@ -162,6 +160,13 @@ class HybridOrderedIterator:
                 tl_batch = torch.LongTensor(list(tl_batch))
                 # assert sl_batch.size(0) == tl_batch.size(0) == af_batch.size(1) == phn_batch.size(1) == \
                 #        flag_batch.size(1) == utt_batch.size(1)
+                if self.device != -1: 
+                    af_batch = af_batch.cuda()
+                    phn_batch = phn_batch.cuda() 
+                    flag_batch = flag_batch.cuda()
+                    sl_batch = sl_batch.cuda()
+                    tl_batch = tl_batch.cuda()
+                    utt_batch = utt_batch.cuda()
                 yield af_batch, phn_batch, flag_batch, sl_batch, tl_batch, utt_batch
                 # yield b
 

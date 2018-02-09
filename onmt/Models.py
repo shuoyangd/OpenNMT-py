@@ -104,8 +104,23 @@ class RNNEncoder(EncoderBase):
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
                  hidden_size, dropout, embeddings):
-      super(HybridEncoder, self).__init__(rnn_type, bidirectional, num_layers,
+      super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
+      rnn_list = []
+      rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
+      num_directions = 2 if bidirectional else 1
+      assert hidden_size % num_directions == 0
+      hidden_size = hidden_size // num_directions
+      for i in range(num_layers - 1):
+          rnn = getattr(nn, rnn_type)(
+                    input_size=hidden_size * num_directions, 
+                    hidden_size=hidden_size,
+                    num_layers=1,
+                    dropout=dropout,
+                    bidirectional=bidirectional)
+          rnn_list.append(rnn)
+      self.rnn_list = nn.ModuleList(rnn_list)
+
 
     def _check_args(self, input, lengths=None, hidden=None):
         input_frame, input_phone, input_flag = input
@@ -116,6 +131,14 @@ class HybridEncoder(RNNEncoder):
         assert input_flag.size() == (2, batch)
         assert input_phone.size() == (s_len, batch, 1)
         assert input_frame.size() == (s_len, batch, emb_dim)
+
+    def subsample(self, outputs, lengths):
+        if lengths is not None and not self.no_pack_padded_seq:
+            outputs, lengths = unpack(outputs)
+        outputs = outputs[::2]
+        lengths = [(l + 1) // 2 for l in lengths]
+        outputs = pack(outputs, lengths)
+        return outputs, lengths
 
     def forward(self, input, lengths=None, hidden=None):
         """ See EncoderBase.forward() for description of args and returns."""
@@ -139,10 +162,16 @@ class HybridEncoder(RNNEncoder):
             lengths = lengths.view(-1).tolist()
             packed_emb = pack(final_input, lengths)
 
-        outputs, hidden_t = self.rnn(packed_emb, hidden)
+        outputs = packed_emb
+        for idx, rnn in enumerate(self.rnn_list):
+            outputs, hidden_t = rnn(outputs, hidden)
+            if idx < 2:
+                outputs, lengths = self.subsample(outputs, lengths)
+            else:
+                pass # do not sample further
 
         if lengths is not None and not self.no_pack_padded_seq:
-            outputs = unpack(outputs)[0]
+            outputs,lengths = unpack(outputs)
 
         return hidden_t, outputs
 
