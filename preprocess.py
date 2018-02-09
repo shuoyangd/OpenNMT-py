@@ -8,6 +8,9 @@ import onmt
 import onmt.IO
 import opts
 
+from collections import Counter
+from torchtext.vocab import Vocab
+
 parser = argparse.ArgumentParser(description='preprocess.py')
 opts.add_md_help_argument(parser)
 
@@ -20,12 +23,12 @@ parser.add_argument('-data_type', default="text",
 parser.add_argument('-data_img_dir', default=".",
                     help="Location of source images")
 
-parser.add_argument('-train_src', required=True,
-                    help="Path to the training source data")
-parser.add_argument('-train_tgt', required=True,
-                    help="Path to the training target data")
-parser.add_argument('-valid_src', required=True,
-                    help="Path to the validation source data")
+parser.add_argument('-train_aug_src', required=True,
+                    help="Path to the augmented source data")
+parser.add_argument('-train_aug_tgt', required=True,
+                    help="Path to the augmented target data")
+parser.add_argument('-train_audio_tgt', required=True,
+                    help="Path to the audio frame target data")
 parser.add_argument('-valid_tgt', required=True,
                     help="Path to the validation target data")
 
@@ -51,18 +54,37 @@ torch.manual_seed(opt.seed)
 
 def main():
     print('Preparing training ...')
-    with codecs.open(opt.train_src, "r", "utf-8") as src_file:
-        src_line = src_file.readline().strip().split()
-        _, _, nFeatures = onmt.IO.extract_features(src_line)
+    num_aug_instances = 0
+    with codecs.open(opt.train_aug_src, "r", "utf-8") as aug_src_file:
+        num_aug_instances += 1
+        aug_src_line = aug_src_file.readline().strip().split()
+        _, _, nFeatures = onmt.IO.extract_features(aug_src_line)
+
+    audio_word_counter = Counter()   
+    num_audio_instances = 0
+    data_names = []
+    with codecs.open(opt.train_audio_tgt, "r", "utf-8") as audio_tgt_file:
+        num_audio_instances += 1
+        audio_tgt_line = audio_tgt_file.readline().strip().split()
+        data_names.append(audio_tgt_line[0])
+        for tok in audio_tgt_line:
+            audio_word_counter[tok] += 1
+    audio_tgt_vocab = Vocab(audio_word_counter)
+
+    mix_fac = num_aug_instances / (num_audio_instances + num_aug_instances)
 
     fields = onmt.IO.ONMTDataset.get_fields(nFeatures)
-    print("Building Training...")
-    train = onmt.IO.ONMTDataset(opt.train_src, opt.train_tgt, fields, opt)
-    print("Building Vocab...")
-    onmt.IO.ONMTDataset.build_vocab(train, opt)
+    print("Building training...")
+    train = onmt.IO.ONMTDataset(opt.train_aug_src, opt.train_aug_tgt, fields, opt)
+    train.mix_fac = mix_fac
+    train.data_names = data_names
 
-    print("Building Valid...")
-    valid = onmt.IO.ONMTDataset(opt.valid_src, opt.valid_tgt, fields, opt)
+    print("Building vocab...")
+    onmt.IO.ONMTDataset.build_vocab(train, opt)
+    train.fields["tgt"].vocab = onmt.IO.merge_vocabs(train.fields["tgt"].vocab, audio_tgt_vocab)
+
+    print("Building valid...")
+    valid = onmt.IO.ONMTDataset(opt.valid_tgt, opt.valid_tgt, fields, opt)
     print("Saving train/valid/fields")
 
     # Can't save fields, so remove/reconstruct at training time.
