@@ -54,21 +54,31 @@ torch.manual_seed(opt.seed)
 
 def main():
     print('Preparing training ...')
-    num_aug_instances = 0
+    print(opt.train_aug_src)
     with codecs.open(opt.train_aug_src, "r", "utf-8") as aug_src_file:
-        num_aug_instances += 1
         aug_src_line = aug_src_file.readline().strip().split()
         _, _, nFeatures = onmt.IO.extract_features(aug_src_line)
 
+    num_aug_instances = 0
+    data_names = set()
+    print(opt.train_aug_tgt)
+    with codecs.open(opt.train_aug_tgt, "r", "utf-8") as aug_tgt_file:
+        for line in aug_tgt_file:
+          num_aug_instances += 1
+          data_names.add(aug_tgt_file.readline().split(None, 1)[0])
+        aug_tgt_file.close()
+    data_names = list(data_names)
+
     audio_word_counter = Counter()   
     num_audio_instances = 0
-    data_names = []
+    print(opt.train_audio_tgt)
     with codecs.open(opt.train_audio_tgt, "r", "utf-8") as audio_tgt_file:
-        num_audio_instances += 1
-        audio_tgt_line = audio_tgt_file.readline().strip().split()
-        data_names.append(audio_tgt_line[0])
-        for tok in audio_tgt_line:
-            audio_word_counter[tok] += 1
+        for line in audio_tgt_file:
+          num_audio_instances += 1
+          audio_tgt_line = audio_tgt_file.readline().strip().split()
+          for tok in audio_tgt_line:
+              audio_word_counter[tok] += 1
+        audio_tgt_file.close()
     audio_tgt_vocab = Vocab(audio_word_counter)
 
     mix_fac = num_aug_instances / (num_audio_instances + num_aug_instances)
@@ -81,7 +91,7 @@ def main():
 
     print("Building vocab...")
     onmt.IO.ONMTDataset.build_vocab(train, opt)
-    train.fields["tgt"].vocab = onmt.IO.merge_vocabs(train.fields["tgt"].vocab, audio_tgt_vocab)
+    train.fields["tgt"].vocab = onmt.IO.merge_vocabs([train.fields["tgt"].vocab, audio_tgt_vocab])
 
     print("Building valid...")
     valid = onmt.IO.ONMTDataset(opt.valid_tgt, opt.valid_tgt, fields, opt)
