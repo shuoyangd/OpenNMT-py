@@ -76,7 +76,7 @@ def main():
         for line in audio_tgt_file:
           num_audio_instances += 1
           audio_tgt_line = audio_tgt_file.readline().strip().split()
-          for tok in audio_tgt_line:
+          for tok in audio_tgt_line[opt.start_idx:]:
               audio_word_counter[tok] += 1
         audio_tgt_file.close()
     audio_tgt_vocab = Vocab(audio_word_counter)
