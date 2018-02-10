@@ -123,14 +123,14 @@ class HybridEncoder(RNNEncoder):
 
 
     def _check_args(self, input, lengths=None, hidden=None):
-        input_frame, input_phone, input_flag = input
-        s_len, batch, emb_dim = input_frame.size()
+        input_audio, input_aug, input_flag = input
+        s_len, batch, emb_dim = input_audio.size()
         # TODO: check with lengths
         # print(input_flag.size())
-        # print(input_frame.size())
-        assert input_flag.size() == (2, batch)
-        assert input_phone.size() == (s_len, batch, 1)
-        assert input_frame.size() == (s_len, batch, emb_dim)
+        # print(input_audio.size())
+        assert input_flag.size() == (2, batch) #TODO:get the size of flags
+        assert input_aug.size() == (s_len, batch, 1)
+        assert input_audio.size() == (s_len, batch, emb_dim)
 
     def subsample(self, outputs, lengths):
         if lengths is not None and not self.no_pack_padded_seq:
@@ -143,20 +143,19 @@ class HybridEncoder(RNNEncoder):
     def forward(self, input, lengths=None, hidden=None):
         """ See EncoderBase.forward() for description of args and returns."""
         # TODO
-        # self._check_args(input, lengths, hidden)
-        input_frame, input_phone, input_flag = input
+        self._check_args(input, lengths, hidden)
+        input_audio, input_aug, input_flag = input 
 
-        emb = self.embeddings(input_phone)
-        s_len, batch, emb_dim = emb.size()
-        # iflag = input_flag[0, :].unsqueeze(0).unsqueeze(2).float()
-        final_input = emb
-        # final_input = (input_frame * iflag) + (emb * (1 - iflag))
+        emb = self.embeddings(input_aug)
+        #s_len, batch, emb_dim = emb.size()
+        iflag = input_flag[:,0].unsqueeze(0).unsqueeze(2).float()
+        final_input = (input_audio * iflag) + (emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
+        #input_flag = input_flag.unsqueeze(0) #(1, |flags|, batch)
 
         # print(torch.norm(emb))
         # print(torch.norm(final_input))
         # assert torch.norm(emb) == torch.norm(final_input)
 
-        packed_emb = final_input
         if lengths is not None and not self.no_pack_padded_seq:
             # Lengths data is wrapped inside a Variable.
             lengths = lengths.view(-1).tolist()
