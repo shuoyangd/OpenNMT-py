@@ -27,6 +27,7 @@ parser.add_argument('-train_aug_src', required=True,
                     help="Path to the augmented source data")
 parser.add_argument('-train_aug_tgt', required=True,
                     help="Path to the augmented target data")
+
 parser.add_argument('-train_audio_tgt', required=True,
                     help="Path to the audio frame target data")
 parser.add_argument('-valid_tgt', required=True,
@@ -39,6 +40,7 @@ parser.add_argument('-src_vocab',
                     help="Path to an existing source vocabulary")
 parser.add_argument('-tgt_vocab',
                     help="Path to an existing target vocabulary")
+
 parser.add_argument('-features_vocabs_prefix', type=str, default='',
                     help="Path prefix to existing features vocabularies")
 parser.add_argument('-seed', type=int, default=3435,

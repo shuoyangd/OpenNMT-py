@@ -105,9 +105,12 @@ def make_hybrid_train_data_iter(train_data, opt):
    return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
            batch_size = opt.batch_size, 
-           utts_file = opt.data + ".train.tgt", 
-           frames_file = opt.data + ".feats.train.pt", 
+           audio_file = opt.data + ".audio.train", 
+           augmenting_file = opt.data + ".aug.train", 
            vocab_file = opt.data + ".vocab.pt",
+           augmenting_data_names = train_data.data_names, 
+           mix_factor = train_data.mix_fac, 
+           embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
 
@@ -128,11 +131,13 @@ def make_hybrid_valid_data_iter(train_data, opt):
    return onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
-           utts_file = opt.data + ".valid.tgt", 
-           frames_file = opt.data + ".feats.valid.pt", 
+           audio_file = opt.data + ".audio.valid", 
+           augmenting_file = None, 
            vocab_file = opt.data + ".vocab.pt",
+           augmenting_data_names = None, 
+           mix_factor = None,
+           embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
-
 
 def make_loss_compute(model, tgt_vocab, dataset, opt):
     """

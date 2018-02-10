@@ -9,15 +9,15 @@ from torch.autograd import Variable
 import numpy as np
 
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, vocab_file, augmenting_data_src_file, augmenting_data_tgt_file,  augmenting_data_names, device, mix_factor, embedding_size):
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, vocab_file,  augmenting_data_names, mix_factor, embedding_size, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
       self.audio_src_reader = lazy_io.read_dict_scp(audio_file + '.src' )
       self.audio_tgt_reader = open(audio_file + '.tgt', 'r')
       self.tgt_vocab = torch.load(vocab_file)[1][1]
       self.augmenting_src_vocab = torch.load(vocab_file)[0][1] 
-      self.augmenting_src_reader = open(augmenting_data_src_file, 'r')
-      self.augmenting_tgt_reader = open(augmenting_data_tgt_file, 'r')
+      self.augmenting_src_reader = open(augmenting_file + '.src', 'r')
+      self.augmenting_tgt_reader = open(augmenting_file + '.tgt', 'r')
       assert isinstance(augmenting_data_names, list)
       self.augmenting_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.device = device
@@ -79,7 +79,7 @@ class HybridOrderedIterator:
         audio_pair = self.get_audio_pair(self.audio_tgt_reader.readline())
         aug_pair = (self.augmenting_src_reader.readline(), self.augmenting_tgt_reader.readline())
         while self._check_end(audio_pair, aug_pair):
-            if np.random.rand() > self.mix_factor and audio_pair != (None, None): # do a audio example
+            if (not self.train_mode) or (np.random.rand() > self.mix_factor and audio_pair != (None, None)): # do a audio example
                 yield self._make_tensors(audio_pair, True)
             elif aug_pair != (None, None):
                 yield self._make_tensors(aug_pair, False)
