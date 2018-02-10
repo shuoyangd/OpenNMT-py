@@ -47,9 +47,7 @@ for filename in os.listdir(prefix_dir):
     data_source = filename.split('.')[2].upper()
     tgt_in = open(os.path.join(prefix_dir, filename))
     for line in tgt_in:
-      newtoks = line.split(None, 1)
-      newtoks.insert(1, data_source)
-      tgt_out.write(" ".join(newtoks))
+      tgt_out.write(data_source + " " + line)
 
 src_out.close()
 tgt_out.close()
