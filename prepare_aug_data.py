@@ -1,54 +1,27 @@
-import fnmatch
+#!/usr/bin/env python
+import argparse
 import os
-import sys
-
-# Data preparation script of the augmented training files
-# Preparation done:
-# 
-# 1. For all source-side training files, the word tokens will be
-#    decorated with the data source.
-# 2. For all target-side training files, the file lines will start
-#    with a tag denoting the data source.
-#
-# The data that to be prepared must follow the following naming
-# coventions:
-# 
-# [prefix].aug.[phn|noise|trans|...].train.[src|tgt]
-# 
-# Note that audio frame files should not be prepared.
-# 
-# The output file after the data preparation will be:
-#
-# [prefix].aug.train.[src|tgt]
-
-if len(sys.argv) < 2:
-  sys.stderr.write("usage: python prepare_aug_data.py aug_file_prefix\n")
-prefix_path = sys.argv[1]
-prefix_dir = os.path.dirname(prefix_path)
-
-src_out = open(prefix_path + ".aug.train.src", 'w')
-tgt_out = open(prefix_path + ".aug.train.tgt", 'w')
-for filename in os.listdir(prefix_dir):
-  fn_prefix = os.path.basename(prefix_path)
-  if fnmatch.fnmatch(filename, fn_prefix + "*.aug.train.*"):
-    pass
-  elif fnmatch.fnmatch(filename, fn_prefix + ".aug.*") and \
-      fnmatch.fnmatch(filename, fn_prefix + "*.train.src"):
-    print("processing {0}".format(filename))
-    data_source = filename.split('.')[2].upper()
-    src_in = open(os.path.join(prefix_dir, filename))
-    for line in src_in:
-      toks = line.strip().split()
-      decorated_toks = [ tok + "_" + data_source for tok in toks ]
-      src_out.write(" ".join(decorated_toks) + "\n")
-  elif fnmatch.fnmatch(filename, fn_prefix + ".aug.*") and \
-      fnmatch.fnmatch(filename, fn_prefix + "*.train.tgt"):
-    print("processing {0}".format(filename))
-    data_source = filename.split('.')[2].upper()
-    tgt_in = open(os.path.join(prefix_dir, filename))
-    for line in tgt_in:
-      tgt_out.write(data_source + " " + line)
-
-src_out.close()
-tgt_out.close()
-
+if __name__ == '__main__':
+    opt= argparse.ArgumentParser(description="write program description here")
+    #insert options here
+    opt.add_argument('--folder', dest='folder', required = True)
+    opt.add_argument('--prefix_out', dest='prefix_out', required = True)
+    opt.add_argument('--prefix_list', nargs='+', dest='prefix_list', required = True)
+    options = opt.parse_args()
+    src_out = open(os.path.join(options.folder, options.prefix_out + ".aug.train.src"), 'w')
+    tgt_out = open(os.path.join(options.folder, options.prefix_out + ".aug.train.tgt"), 'w')
+    aug2id = {k:i+1 for i,k in enumerate(options.prefix_list)}
+    for pf in aug2id:
+        src_in = open(os.path.join(options.folder, pf + '.src'))
+        tgt_in = open(os.path.join(options.folder, pf + '.src'))
+        aug_idx = aug2id[pf]
+        for line in src_in:
+            toks = line.strip().split()
+            decorated_toks = [ tok + "_" + str(aug_idx) for tok in toks ]
+            src_out.write(" ".join(decorated_toks) + "\n")
+        for line in tgt_in:
+            tgt_out.write(pf + " " + line)
+    src_out.flush()
+    src_out.close()
+    tgt_out.flush()
+    tgt_out.close()
