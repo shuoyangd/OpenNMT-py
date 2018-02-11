@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import argparse
 import os
+#NEW USAGE:
+#python prepare_aug_data.py --folder ./dummy_data/ --prefix_list dummy.noise dummy.phn --prefix_out dummy
+
 if __name__ == '__main__':
     opt= argparse.ArgumentParser(description="write program description here")
     #insert options here
