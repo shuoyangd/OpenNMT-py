@@ -103,9 +103,11 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings):
+                 hidden_size, dropout, embeddings, concat_flags, add_noise):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
+      self.concat_flags = concat_flags
+      self.add_noise = add_noise
       rnn_list = []
       rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
       num_directions = 2 if bidirectional else 1
@@ -146,28 +148,21 @@ class HybridEncoder(RNNEncoder):
         self._check_args(input, lengths, hidden)
         input_audio, input_aug, input_flag = input 
 
-        emb = self.embeddings(input_aug)
-        #s_len, batch, emb_dim = emb.size()
-        #print(input_flag, 'input_flag')
-        #print(input_audio.shape, 'input_audio')
-        #print(emb.shape, 'emb')
+        emb = self.embeddings(input_aug) #TODO: add noise
+        if self.add_noise == 1:
+            noise = Variable(torch.randn(1, emb.size(1), emb.size(2)).type_as(input_audio), requires_grad=False) #the type_as(input_audio) is to create a cuda tensor or normal tensor
+            emb += noise
+        else:
+            pass
         iflag = input_flag[0,:].unsqueeze(0).unsqueeze(2).float()
-        #print(iflag.shape, 'iflag')
-        #tmp1 = (input_audio * iflag)
-        #tmp2 = (emb * (1.0 - iflag))
-        #print('tmp1', tmp1.shape)
-        #print('tmp2', tmp2.shape)
         final_input = (input_audio * iflag) + (emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
-        #input_flag = input_flag.unsqueeze(0) #(1, |flags|, batch)
-
-        # print(torch.norm(emb))
-        # print(torch.norm(final_input))
-        # assert torch.norm(emb) == torch.norm(final_input)
 
         if lengths is not None and not self.no_pack_padded_seq:
             # Lengths data is wrapped inside a Variable.
             lengths = lengths.view(-1).tolist()
             packed_emb = pack(final_input, lengths)
+            #print(packed_emb.data.shape, 'packed_emb shape')
+            #print(final_input.shape, 'final_input shape')
 
         outputs = packed_emb
         for idx, rnn in enumerate(self.rnn_list):

@@ -3,6 +3,7 @@ This file is for models creation, which consults options
 and creates each encoder and decoder accordingly.
 """
 import torch.nn as nn
+import pdb
 
 import onmt
 import onmt.Models
@@ -67,7 +68,7 @@ def make_encoder(opt, embeddings):
         return MeanEncoder(opt.enc_layers, embeddings)
     elif opt.encoder_type == "hybrid":
         return HybridEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
-                             opt.rnn_size, opt.dropout, embeddings)
+                             opt.rnn_size, opt.dropout, embeddings, opt.concat_flags, opt.add_noise)
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
