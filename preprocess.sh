@@ -1,5 +1,12 @@
 #!/bin/sh
 set -e
+if [ $# -eq 1 ]
+then
+  echo $1 
+else
+  echo "invalid number of args (expected 1)"
+  exit 1
+fi
 source /home/arenduc1/virtualenvs/py3venv/bin/activate
 OPENMNTPATH=/home/arenduc1/virtualenvs/tools/OpenNMT-py-sding
 export PYTHONPATH=$PYTHONPATH:$OPENMNTPATH/onmt/modules
