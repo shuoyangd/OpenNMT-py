@@ -20,21 +20,23 @@ class HybridOrderedIterator:
       self.aug_src_vocab = torch.load(vocab_file)[0][1] 
       self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.flags_size = len(augmenting_data_names) + 1
-      if self.train_mode:
+      self.mix_factor = mix_factor
+      self.device = device
+      self.use_aug = self.train_mode and (self.mix_factor > 0.0) and (augmenting_file is not None)
+      if self.use_aug:
           self.aug_src_reader_file = augmenting_file + '.src'
           self.aug_tgt_reader_file = augmenting_file + '.tgt'
-          self.mix_factor = mix_factor
-      else:
-          self.mix_factor = 0.0
-      self.device = device
       self.embedding_size = embedding_size
 
     def create_batches(self):
+       #initialize file readers to starting point
        self.audio_src_reader = lazy_io.read_dict_scp(self.audio_src_reader_file)
        self.audio_tgt_reader = open(self.audio_tgt_reader_file, 'r')
+       if self.use_aug:
+           self.aug_src_reader = open(self.aug_src_reader_file, 'r')
+           self.aug_tgt_reader = open(self.aug_tgt_reader_file, 'r')
+
        if self.train_mode:
-            self.aug_src_reader = open(self.aug_src_reader_file, 'r')
-            self.aug_tgt_reader = open(self.aug_tgt_reader_file, 'r')
             self.batches = self.pool(self.data())
        else:
             self.batches = self.pool(self.data(), False, 1)
@@ -48,15 +50,21 @@ class HybridOrderedIterator:
       for batch in self.batches:
         yield batch
 
-    def get_aug_pair(self, aug_src_line, aug_tgt_line):
-        src_ok = aug_src_line is not None and aug_src_line.strip() != ''
-        tgt_ok = aug_tgt_line is not None and aug_tgt_line.strip() != ''
-        if src_ok and tgt_ok:
-            return aug_src_line, aug_tgt_line
+    def get_next_aug_pair(self):
+        if self.use_aug:
+            aug_src_line = self.aug_src_reader.readline()
+            aug_tgt_line = self.aug_tgt_reader.readline()
+            src_ok = aug_src_line is not None and aug_src_line.strip() != ''
+            tgt_ok = aug_tgt_line is not None and aug_tgt_line.strip() != ''
+            if src_ok and tgt_ok:
+                return aug_src_line, aug_tgt_line
+            else:
+                return None, None
         else:
             return None, None
 
-    def get_audio_pair(self, audio_tgt_line):
+    def get_next_audio_pair(self):
+        audio_tgt_line = self.audio_tgt_reader.readline()
         if audio_tgt_line is not None and audio_tgt_line.strip() != '':
             idx, audio_tgt = audio_tgt_line.strip().split(None, 1)
             audio_src = self.audio_src_reader[idx]
@@ -75,9 +83,8 @@ class HybridOrderedIterator:
         src, tgt = pair
         flags = torch.zeros(self.flags_size).byte()
         if is_audio: 
-            assert isinstance(src, np.ndarray) #(seq_len, features)
-            assert isinstance(tgt, str)
-            assert tgt.strip() != ''
+            #assert isinstance(src, np.ndarray) #(seq_len, features)
+            #assert isinstance(tgt, str)
             audio_src = torch.FloatTensor(src).unsqueeze(1) #(seq_len, 1, features)
             aug_src = torch.zeros((1, 1)).long() #fake (1, 1)
             tgt = ["<s>"] + tgt.split() + ["</s>"]
@@ -86,10 +93,8 @@ class HybridOrderedIterator:
             flags = flags.unsqueeze(1)
             src_length = audio_src.size(0)
         else:
-            assert isinstance(src, str)
-            assert isinstance(tgt, str)
-            assert src.strip() != ''
-            assert tgt.strip() != ''
+            #assert isinstance(src, str)
+            #assert isinstance(tgt, str)
             audio_src = torch.zeros((1, 1, self.embedding_size)).float()  #fake (1, 1, features)
             src = ["<s>"] + src.split() + ["</s>"]
             aug_src = torch.LongTensor([self.aug_src_vocab.stoi[tok] for tok in src]).unsqueeze(1)
@@ -105,23 +110,21 @@ class HybridOrderedIterator:
 
 
     def data(self):
-        audio_pair = self.get_audio_pair(self.audio_tgt_reader.readline())
-        if self.train_mode:
-            aug_pair = self.get_aug_pair(self.aug_src_reader.readline(), self.aug_tgt_reader.readline())
-        else:
-            aug_pair = (None, None)
-
+        audio_pair = self.get_next_audio_pair()
+        aug_pair = self.get_next_aug_pair()
         while not self.is_end(audio_pair, aug_pair):
-            if (np.random.rand() > self.mix_factor and audio_pair[1] != None and audio_pair[1].strip() != ''): # do a audio example
+            if np.random.rand() > self.mix_factor and audio_pair[1] != None:
+                #print('audio', self.train_mode)
                 tmp = self._make_tensors(audio_pair, True)
-                audio_pair = self.get_audio_pair(self.audio_tgt_reader.readline())
+                audio_pair = self.get_next_audio_pair() 
                 yield tmp
-            elif aug_pair[1] != None and aug_pair[1].strip() != '':
+            elif aug_pair[1] != None:
+                #print('aug', self.train_mode)
                 tmp = self._make_tensors(aug_pair, False)
-                aug_pair = self.get_aug_pair(self.aug_src_reader.readline(), self.aug_tgt_reader.readline())
+                aug_pair = self.get_next_aug_pair()
                 yield tmp
-
             else:
+                #print('reached end of data') 
                 pass
 
     def batch(self, data, batch_size, pad):

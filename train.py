@@ -5,7 +5,7 @@ import argparse
 import torch
 import torch.nn as nn
 from torch import cuda
-
+import pdb
 import onmt
 import onmt.Models
 import onmt.ModelConstructor
@@ -109,7 +109,7 @@ def make_hybrid_train_data_iter(train_data, opt, data_names):
            augmenting_file = opt.data + ".aug.train", 
            vocab_file = opt.data + ".vocab.pt",
            augmenting_data_names = data_names, 
-           mix_factor = train_data.mix_fac, 
+           mix_factor = train_data.mix_fac if opt.train_with_aug == 1 else 0.0, 
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
@@ -135,7 +135,7 @@ def make_hybrid_valid_data_iter(train_data, opt, data_names):
            augmenting_file = None, 
            vocab_file = opt.data + ".vocab.pt",
            augmenting_data_names = data_names, 
-           mix_factor = None,
+           mix_factor = 0.0,
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
@@ -163,8 +163,6 @@ def train_model(model, train_data, valid_data, fields, optim):
 
     if opt.encoder_type == "hybrid":
       print(train_data, valid_data, 'im here')
-      #import pdb
-      #pdb.set_trace()
       train_iter = make_hybrid_train_data_iter(train_data, opt, train_data.data_names)
       valid_iter = make_hybrid_valid_data_iter(valid_data, opt, train_data.data_names)
     else:

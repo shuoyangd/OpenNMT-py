@@ -97,6 +97,15 @@ def model_opts(parser):
     parser.add_argument('-lambda_coverage', type=float, default=1,
                         help='Lambda value for coverage.')
 
+    #Augmenting options
+    parser.add_argument('-train_with_aug', type=int, default=0, choices=set((0,1)),
+                        help='use augmenting data in training (or just audio data i.e. standard asr training).')
+
+    parser.add_argument('-concat_flags', type=int, default=1, choices=set((0,1)),
+                        help='concat the one-hot flag vector to input of the RNN')
+
+    parser.add_argument('-add_noise', type=int, default=1, choices=set((0,1)),
+                        help='add noise to the augmented token embeddings')
 
 def preprocess_opts(parser):
     # Dictionary Options
