@@ -128,7 +128,7 @@ class HybridEncoder(RNNEncoder):
         # TODO: check with lengths
         # print(input_flag.size())
         # print(input_audio.size())
-        assert input_flag.size() == (2, batch) #TODO:get the size of flags
+        #assert input_flag.size() == (2, batch) #TODO:get the size of flags
         assert input_aug.size() == (s_len, batch, 1)
         assert input_audio.size() == (s_len, batch, emb_dim)
 
@@ -148,7 +148,15 @@ class HybridEncoder(RNNEncoder):
 
         emb = self.embeddings(input_aug)
         #s_len, batch, emb_dim = emb.size()
-        iflag = input_flag[:,0].unsqueeze(0).unsqueeze(2).float()
+        #print(input_flag, 'input_flag')
+        #print(input_audio.shape, 'input_audio')
+        #print(emb.shape, 'emb')
+        iflag = input_flag[0,:].unsqueeze(0).unsqueeze(2).float()
+        #print(iflag.shape, 'iflag')
+        #tmp1 = (input_audio * iflag)
+        #tmp2 = (emb * (1.0 - iflag))
+        #print('tmp1', tmp1.shape)
+        #print('tmp2', tmp2.shape)
         final_input = (input_audio * iflag) + (emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
         #input_flag = input_flag.unsqueeze(0) #(1, |flags|, batch)
 

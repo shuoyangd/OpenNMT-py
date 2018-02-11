@@ -102,7 +102,7 @@ def make_train_data_iter(train_data, opt):
 
 
 def make_hybrid_train_data_iter(train_data, opt):
-   return onmt.modules.HybridOrderedIterator(
+    return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.train", 
@@ -128,7 +128,7 @@ def make_valid_data_iter(valid_data, opt):
 
 
 def make_hybrid_valid_data_iter(train_data, opt):
-   return onmt.modules.HybridOrderedIterator(
+    return onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.valid", 
@@ -162,6 +162,9 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
 def train_model(model, train_data, valid_data, fields, optim):
 
     if opt.encoder_type == "hybrid":
+      print(train_data, valid_data, 'im here')
+      #import pdb
+      #pdb.set_trace()
       train_iter = make_hybrid_train_data_iter(train_data, opt)
       valid_iter = make_hybrid_valid_data_iter(valid_data, opt)
     else:
