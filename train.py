@@ -101,14 +101,14 @@ def make_train_data_iter(train_data, opt):
                 repeat=False)
 
 
-def make_hybrid_train_data_iter(train_data, opt):
+def make_hybrid_train_data_iter(train_data, opt, data_names):
     return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.train", 
            augmenting_file = opt.data + ".aug.train", 
            vocab_file = opt.data + ".vocab.pt",
-           augmenting_data_names = train_data.data_names, 
+           augmenting_data_names = data_names, 
            mix_factor = train_data.mix_fac, 
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
@@ -127,14 +127,14 @@ def make_valid_data_iter(valid_data, opt):
                 train=False, sort=True)
 
 
-def make_hybrid_valid_data_iter(train_data, opt):
+def make_hybrid_valid_data_iter(train_data, opt, data_names):
     return onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.valid", 
            augmenting_file = None, 
            vocab_file = opt.data + ".vocab.pt",
-           augmenting_data_names = None, 
+           augmenting_data_names = data_names, 
            mix_factor = None,
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
@@ -165,8 +165,8 @@ def train_model(model, train_data, valid_data, fields, optim):
       print(train_data, valid_data, 'im here')
       #import pdb
       #pdb.set_trace()
-      train_iter = make_hybrid_train_data_iter(train_data, opt)
-      valid_iter = make_hybrid_valid_data_iter(valid_data, opt)
+      train_iter = make_hybrid_train_data_iter(train_data, opt, train_data.data_names)
+      valid_iter = make_hybrid_valid_data_iter(valid_data, opt, train_data.data_names)
     else:
       train_iter = make_train_data_iter(train_data, opt)
       valid_iter = make_valid_data_iter(valid_data, opt)

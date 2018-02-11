@@ -96,7 +96,6 @@ class Trainer(object):
         """ Called for each epoch to train. """
         total_stats = Statistics()
         report_stats = Statistics()
-
         for i, batch in enumerate(self.train_iter):
             if isinstance(batch, tuple):
               target_size = batch[-1].size(0)
