@@ -170,7 +170,7 @@ class HybridOrderedIterator:
             minibatch = []
             yield merged_minibatch
 
-    def pool(self, data, do_shuffle=True, bucket_factor = 3): #TODO: bucket_factor should be small for toy data
+    def pool(self, data, do_shuffle=True, bucket_factor = 100): #TODO: bucket_factor should be small for toy data
         """Sort within buckets, then batch, then shuffle batches.
         Partitions data into chunks of size 100*batch_size, sorts examples within
         each chunk using sort_key, then batch these examples and shuffle the
