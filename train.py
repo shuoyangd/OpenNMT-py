@@ -162,7 +162,8 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
 def train_model(model, train_data, valid_data, fields, optim):
 
     if opt.encoder_type == "hybrid":
-      print(train_data, valid_data, 'im here')
+      assert opt.num_concat_flags == (1+len(train_data.data_names)) or opt.num_concat_flags == 0, 'num_concat_flags should be \
+      either 0 or equal to the size of the flag vector'
       train_iter = make_hybrid_train_data_iter(train_data, opt, train_data.data_names)
       valid_iter = make_hybrid_valid_data_iter(valid_data, opt, train_data.data_names)
     else:

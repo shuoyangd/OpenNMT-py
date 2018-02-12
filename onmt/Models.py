@@ -103,19 +103,20 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, concat_flags, add_noise):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
-      self.concat_flags = concat_flags
+      self.num_concat_flags = num_concat_flags 
       self.add_noise = add_noise
       rnn_list = []
-      rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
+      #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
+      self.rnn = None
       num_directions = 2 if bidirectional else 1
       assert hidden_size % num_directions == 0
       hidden_size = hidden_size // num_directions
-      for i in range(num_layers - 1):
+      for i in range(num_layers):
           rnn = getattr(nn, rnn_type)(
-                    input_size=hidden_size * num_directions, 
+                    input_size= (hidden_size * num_directions) if i > 0 else (embeddings.embedding_size + num_concat_flags), 
                     hidden_size=hidden_size,
                     num_layers=1,
                     dropout=dropout,
@@ -130,7 +131,7 @@ class HybridEncoder(RNNEncoder):
         # TODO: check with lengths
         # print(input_flag.size())
         # print(input_audio.size())
-        #assert input_flag.size() == (2, batch) #TODO:get the size of flags
+        # assert input_flag.size() == (self.num_concat_flags, batch) 
         assert input_aug.size() == (s_len, batch, 1)
         assert input_audio.size() == (s_len, batch, emb_dim)
 
@@ -150,12 +151,22 @@ class HybridEncoder(RNNEncoder):
 
         emb = self.embeddings(input_aug) #TODO: add noise
         if self.add_noise == 1:
-            noise = Variable(torch.randn(1, emb.size(1), emb.size(2)).type_as(input_audio), requires_grad=False) #the type_as(input_audio) is to create a cuda tensor or normal tensor
+            n = torch.rand(1, emb.size(1), emb.size(2)).type_as(input_audio.data)
+            noise = Variable(n, requires_grad=False) #the type_as(input_audio) is to create a cuda tensor or normal tensor
             emb += noise
         else:
             pass
         iflag = input_flag[0,:].unsqueeze(0).unsqueeze(2).float()
         final_input = (input_audio * iflag) + (emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
+
+        if self.num_concat_flags > 0:
+            assert input_flag.size(0) == self.num_concat_flags
+            input_flag = input_flag.transpose(0,1) #(b,f)
+            input_flag = input_flag.unsqueeze(0) #(1, b , f)
+            input_flag = input_flag.expand(input_audio.size(0), input_flag.size(1), input_flag.size(2))
+            final_input = torch.cat([final_input, input_flag.float()], dim=2)
+        else:
+            pass
 
         if lengths is not None and not self.no_pack_padded_seq:
             # Lengths data is wrapped inside a Variable.
