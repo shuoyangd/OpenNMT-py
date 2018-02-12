@@ -10,7 +10,7 @@ import onmt.Models
 import onmt.modules
 from onmt.IO import ONMTDataset
 from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
-                        StdRNNDecoder, InputFeedRNNDecoder, HybridEncoder
+                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, HybridEncoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder
@@ -68,7 +68,7 @@ def make_encoder(opt, embeddings):
         return MeanEncoder(opt.enc_layers, embeddings)
     elif opt.encoder_type == "hybrid":
         return HybridEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
-                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise)
+                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat)
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
@@ -91,7 +91,20 @@ def make_decoder(opt, embeddings):
                           opt.global_attention, opt.copy_attn,
                           opt.cnn_kernel_width, opt.dropout,
                           embeddings)
+    elif opt.decoder_type == "hybrid":
+        print("making input feed decoder WITH FLAGS!")
+        return InputFeedRNNDecoderWithFlags(opt.rnn_type, opt.brnn,
+                                   opt.dec_layers, opt.rnn_size,
+                                   opt.global_attention,
+                                   opt.coverage_attn,
+                                   opt.context_gate,
+                                   opt.copy_attn,
+                                   opt.dropout,
+                                   embeddings,
+                                   opt.num_concat_flags,
+                                   opt.use_highway_concat)
     elif opt.input_feed:
+        print("making input feed decoder")
         return InputFeedRNNDecoder(opt.rnn_type, opt.brnn,
                                    opt.dec_layers, opt.rnn_size,
                                    opt.global_attention,

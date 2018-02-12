@@ -42,7 +42,7 @@ def model_opts(parser):
                         choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid'],
                         help="""Type of encoder layer to use.""")
     parser.add_argument('-decoder_type', type=str, default='rnn',
-                        choices=['rnn', 'transformer', 'cnn'],
+                        choices=['rnn', 'transformer', 'cnn', 'hybrid'],
                         help='Type of decoder layer to use.')
     
     #parser.add_argument('-layers', type=int, default=-1,
@@ -103,6 +103,9 @@ def model_opts(parser):
 
     parser.add_argument('-num_concat_flags', type=int, default=0,
                         help='concat the one-hot flag vector to input of the RNN')
+
+    parser.add_argument('-use_highway_concat', type=int, default=0, choices=set((0,1)),
+                        help='use_highway concat to the output of the RNNs')
 
     parser.add_argument('-add_noise', type=int, default=0, choices=set((0,1)),
                         help='add noise to the augmented token embeddings')
