@@ -24,4 +24,4 @@ export PYTHONPATH=$PYTHONPATH:$OPENMNTPATH/onmt/modules
 MODEL_DIR=$PROJECT_DIR/models/${DATA_TYPE}
 mkdir -p $MODEL_DIR
 
-python $OPENMNTPATH/train.py -data $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE} -save_model $MODEL_DIR/${NAME} -encoder_type hybrid -decoder_type hybrid -rnn_size $RNN_SIZE -word_vec_size 123 -batch_size 64  -optim adadelta -dropout 0.1 -enc_layers 4 -dec_layers $DEC_LAYERS -learning_rate_decay 0.99 -epochs 50 -train_with_aug $TRAIN_WITH_AUG -num_concat_flags $NUM_CONCAT_FLAGS -add_noise $ADD_NOISE -use_highway_concat $HIGHWAY_CONCAT
+python $OPENMNTPATH/train.py -data $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE} -save_model $MODEL_DIR/${NAME} -encoder_type hybrid -rnn_size $RNN_SIZE -word_vec_size 123 -batch_size 128  -optim adadelta -dropout 0.1 -enc_layers 4 -dec_layers $DEC_LAYERS -learning_rate_decay 0.99 -epochs 50 -train_with_aug $TRAIN_WITH_AUG -num_concat_flags $NUM_CONCAT_FLAGS -add_noise $ADD_NOISE -use_highway_concat $HIGHWAY_CONCAT

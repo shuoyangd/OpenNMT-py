@@ -11,9 +11,10 @@ import numpy as np
 
 ExInstance = namedtuple('ExInstance', 'audio_src aug_src flags src_length tgt_length tgt')
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, vocab_file,  augmenting_data_names, mix_factor, embedding_size, device):
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, vocab_file,  augmenting_data_names, mix_factor, num_aug_instances, num_audio_instances, embedding_size, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
+      self.num_audio_instances =  num_audio_instances
       self.audio_src_reader_file = audio_file + '.src'
       self.audio_tgt_reader_file = audio_file + '.tgt'
       self.tgt_vocab = torch.load(vocab_file)[1][1]
@@ -22,10 +23,12 @@ class HybridOrderedIterator:
       self.flags_size = len(augmenting_data_names) + 1
       self.mix_factor = mix_factor
       self.device = device
+      self.num_aug_instances = 0 #num_aug_instances
       self.use_aug = self.train_mode and (self.mix_factor > 0.0) and (augmenting_file is not None)
       if self.use_aug:
           self.aug_src_reader_file = augmenting_file + '.src'
           self.aug_tgt_reader_file = augmenting_file + '.tgt'
+          self.num_aug_instances = num_aug_instances
       self.embedding_size = embedding_size
 
     def create_batches(self):
@@ -41,9 +44,9 @@ class HybridOrderedIterator:
        else:
             self.batches = self.pool(self.data(), False, 1)
 
-
     def __len__(self):
-      return math.ceil(3696 / self.batch_size)
+      s = self.num_audio_instances + self.num_aug_instances
+      return math.ceil(s / self.batch_size)
 
     def __iter__(self):
       self.create_batches()

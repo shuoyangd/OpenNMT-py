@@ -103,12 +103,13 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, use_highway_concat):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
+      self.highway_concat = highway_concat
       self.add_noise = add_noise
-      self.use_highway_concat = use_highway_concat
+      self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
       rnn_list = []
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
       self.rnn = None
@@ -124,7 +125,6 @@ class HybridEncoder(RNNEncoder):
                     bidirectional=bidirectional)
           rnn_list.append(rnn)
       self.rnn_list = nn.ModuleList(rnn_list)
-
 
     def _check_args(self, input, lengths=None, hidden=None):
         input_audio, input_aug, input_flag = input
@@ -163,10 +163,10 @@ class HybridEncoder(RNNEncoder):
 
         if self.num_concat_flags > 0:
             assert input_flag.size(0) == self.num_concat_flags
-            concat_input_flag = input_flag.transpose(0,1) #(b,f)
-            concat_input_flag = concat_input_flag.unsqueeze(0) #(1, b , f)
-            concat_input_flag = concat_input_flag.expand(input_audio.size(0), concat_input_flag.size(1), concat_input_flag.size(2))
-            final_input = torch.cat([final_input, concat_input_flag.float()], dim=2)
+            concat_flag = input_flag.transpose(0,1) #(b,f)
+            concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
+            concat_flag = concat_flag.expand(input_audio.size(0), concat_flag.size(1), concat_flag.size(2))
+            final_input = torch.cat([final_input, concat_flag.float()], dim=2)
         else:
             pass
 
@@ -187,15 +187,17 @@ class HybridEncoder(RNNEncoder):
 
         if lengths is not None and not self.no_pack_padded_seq:
             outputs,lengths = unpack(outputs)
-        
-        if self.num_concat_flags > 0 and self.use_highway_concat == 1:
+
+        if self.num_concat_flags > 0 and self.highway_concat > 0:
+            outputs = self.highway_linear(outputs) # (seq_len, batch_size, hidden_size - num_concat_flags)
+
             assert input_flag.size(0) == self.num_concat_flags
-            concat_input_flag = input_flag.transpose(0,1) #(b,f)
-            concat_input_flag = concat_input_flag.unsqueeze(0) #(1, b , f)
-            concat_input_flag = concat_input_flag.expand(outputs.size(0), concat_input_flag.size(1), concat_input_flag.size(2))
-            outputs = torch.cat([outputs, concat_input_flag.float()], dim=2)
+            concat_flag = input_flag.transpose(0,1) #(b,f)
+            concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
+            concat_flag = concat_flag.expand(outputs.size(0), concat_flag.size(1), concat_flag.size(2))
+            outputs = torch.cat([outputs, concat_flag.float()], dim=2)  # (seq_len, batch_size, hidden_size)
         else:
-            pass
+            pass       
 
         return hidden_t, outputs
 
