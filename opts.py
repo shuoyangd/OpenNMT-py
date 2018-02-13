@@ -100,12 +100,12 @@ def model_opts(parser):
     #Augmenting options
     parser.add_argument('-train_with_aug', type=int, default=0, choices=set((0,1)),
                         help='use augmenting data in training (or just audio data i.e. standard asr training).')
-
     parser.add_argument('-num_concat_flags', type=int, default=0,
                         help='concat the one-hot flag vector to input of the RNN')
-
     parser.add_argument('-add_noise', type=int, default=0, choices=set((0,1)),
                         help='add noise to the augmented token embeddings')
+    parser.add_argument('-use_highway_concat', type=int, default=0, choices=set((0, 1)),
+                        help='use highway concatenation')
 
 def preprocess_opts(parser):
     # Dictionary Options
