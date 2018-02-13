@@ -42,7 +42,7 @@ def model_opts(parser):
                         choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid'],
                         help="""Type of encoder layer to use.""")
     parser.add_argument('-decoder_type', type=str, default='rnn',
-                        choices=['rnn', 'transformer', 'cnn'],
+                        choices=['rnn', 'transformer', 'cnn', 'hybrid'],
                         help='Type of decoder layer to use.')
     
     #parser.add_argument('-layers', type=int, default=-1,

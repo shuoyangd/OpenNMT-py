@@ -103,15 +103,13 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, \
-                 num_concat_flags, add_noise, highway_concat):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
       self.add_noise = add_noise
       self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
-
       rnn_list = []
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
       self.rnn = None
@@ -121,7 +119,7 @@ class HybridEncoder(RNNEncoder):
       for i in range(num_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else (embeddings.embedding_size + num_concat_flags), 
-                    hidden_size=hidden_size,
+                    hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
@@ -152,15 +150,16 @@ class HybridEncoder(RNNEncoder):
         self._check_args(input, lengths, hidden)
         input_audio, input_aug, input_flag = input 
 
-        emb = self.embeddings(input_aug) #TODO: add noise
+        input_aug_emb = self.embeddings(input_aug) #TODO: add noise
         if self.add_noise == 1:
-            n = torch.rand(1, emb.size(1), emb.size(2)).type_as(input_audio.data)
+            n = torch.rand(1, input_aug_emb.size(1), input_aug_emb.size(2)).type_as(input_audio.data)
             noise = Variable(n, requires_grad=False) #the type_as(input_audio) is to create a cuda tensor or normal tensor
-            emb += noise
+            input_aug_emb += noise
         else:
             pass
         iflag = input_flag[0,:].unsqueeze(0).unsqueeze(2).float()
-        final_input = (input_audio * iflag) + (emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
+
+        final_input = (input_audio * iflag) + (input_aug_emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
 
         if self.num_concat_flags > 0:
             assert input_flag.size(0) == self.num_concat_flags
@@ -486,6 +485,23 @@ class InputFeedRNNDecoder(RNNDecoderBase):
         Using input feed by concatenating input with attention vectors.
         """
         return self.embeddings.embedding_size + self.hidden_size
+
+class InputFeedRNNDecoderWithFlags(InputFeedRNNDecoder):
+    def __init__(self, rnn_type, bidirectional_encoder, num_layers,
+                 hidden_size, attn_type, coverage_attn, context_gate,
+                 copy_attn, dropout, embeddings, num_concat_flags, use_highway_concat):
+        super(InputFeedRNNDecoderWithFlags, self).__init__(rnn_type, bidirectional_encoder, num_layers,
+                 hidden_size, attn_type, coverage_attn, context_gate,
+                 copy_attn, dropout, embeddings)
+       
+        #overwirte self.attn with new GlobalAttentionWithFlags
+        print("GlobalAttentionWithFlags overwrite")
+        self.attn = onmt.modules.GlobalAttentionWithFlags(
+            dim = hidden_size, 
+            dim_with_flags = hidden_size + (num_concat_flags * use_highway_concat),
+            coverage=coverage_attn,
+            attn_type=attn_type
+        )
 
 
 class NMTModel(nn.Module):

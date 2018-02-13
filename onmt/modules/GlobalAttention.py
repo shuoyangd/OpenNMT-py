@@ -43,6 +43,7 @@ class GlobalAttention(nn.Module):
         super(GlobalAttention, self).__init__()
 
         self.dim = dim
+        print('GlobalAttention created', dim)
         self.attn_type = attn_type
         assert (self.attn_type in ["dot", "general", "mlp"]), (
                 "Please select a valid attention type.")
@@ -79,8 +80,11 @@ class GlobalAttention(nn.Module):
         src_batch, src_len, src_dim = h_s.size()
         tgt_batch, tgt_len, tgt_dim = h_t.size()
         aeq(src_batch, tgt_batch)
-        aeq(src_dim, tgt_dim)
-        aeq(self.dim, src_dim)
+        if hasattr(self, 'dim_with_flags'):
+            pass
+        else:
+            aeq(src_dim, tgt_dim)
+            aeq(self.dim, src_dim)
 
         if self.attn_type in ["general", "dot"]:
             if self.attn_type == "general":
@@ -122,8 +126,10 @@ class GlobalAttention(nn.Module):
         batch, sourceL, dim = context.size()
         batch_, targetL, dim_ = input.size()
         aeq(batch, batch_)
-        aeq(dim, dim_)
-        aeq(self.dim, dim)
+        if hasattr(self, 'dim_with_flags'):
+            pass
+        else:
+            aeq(self.dim, dim_)
         if coverage is not None:
             batch_, sourceL_ = coverage.size()
             aeq(batch, batch_)
@@ -186,3 +192,34 @@ class GlobalAttention(nn.Module):
             aeq(sourceL, sourceL_)
 
         return attn_h, align_vectors
+
+class GlobalAttentionWithFlags(GlobalAttention):
+    def __init__(self, dim, dim_with_flags, coverage=False, attn_type="dot"):
+        super(GlobalAttentionWithFlags, self).__init__(dim, coverage, attn_type)
+
+        print('GlobalAttentionWithFlags created', dim, dim_with_flags)
+        self.dim = dim
+        self.dim_with_flags = dim_with_flags
+        self.attn_type = attn_type
+        assert (self.attn_type in ["dot", "general", "mlp"]), (
+                "Please select a valid attention type.")
+
+        if self.attn_type == "general":
+            self.linear_in = nn.Linear(dim, dim_with_flags, bias=False)
+        elif self.attn_type == "mlp":
+            raise NotImplementedError("only implemented for general attn")
+            self.linear_context = BottleLinear(dim, dim, bias=False)
+            self.linear_query = nn.Linear(dim, dim, bias=True)
+            self.v = BottleLinear(dim, 1, bias=False)
+        # mlp wants it with bias
+        out_bias = self.attn_type == "mlp"
+        self.linear_out = nn.Linear(dim*2, dim, bias=out_bias)
+
+        self.sm = nn.Softmax()
+        self.tanh = nn.Tanh()
+        self.mask = None
+
+        if coverage:
+            self.linear_cover = nn.Linear(1, dim, bias=False)
+
+

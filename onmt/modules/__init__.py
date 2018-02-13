@@ -2,6 +2,7 @@ from onmt.modules.UtilClass import LayerNorm, Bottle, BottleLinear, \
     BottleLayerNorm, BottleSoftmax, Elementwise
 from onmt.modules.Gate import ContextGateFactory
 from onmt.modules.GlobalAttention import GlobalAttention
+from onmt.modules.GlobalAttention import GlobalAttentionWithFlags
 from onmt.modules.ConvMultiStepAttention import ConvMultiStepAttention
 from onmt.modules.ImageEncoder import ImageEncoder
 from onmt.modules.CopyGenerator import CopyGenerator, CopyGeneratorLossCompute
@@ -21,7 +22,7 @@ if can_use_sru:
 
 
 # For flake8 compatibility.
-__all__ = [GlobalAttention, ImageEncoder, CopyGenerator, MultiHeadedAttention,
+__all__ = [GlobalAttention, GlobalAttentionWithFlags, HybridOrderedIterator, ImageEncoder, CopyGenerator, MultiHeadedAttention,
            LayerNorm, Bottle, BottleLinear, BottleLayerNorm, BottleSoftmax,
            TransformerEncoder, TransformerDecoder, Embeddings, Elementwise,
            MatrixTree, WeightNormConv2d, ConvMultiStepAttention,

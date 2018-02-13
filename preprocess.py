@@ -67,7 +67,7 @@ def main():
     with codecs.open(opt.train_aug_tgt, "r", "utf-8") as aug_tgt_file:
         for line in aug_tgt_file:
           num_aug_instances += 1
-          data_names.add(aug_tgt_file.readline().split(None, 1)[0])
+          data_names.add(line.split(None, 1)[0])
         aug_tgt_file.close()
     data_names = list(data_names)
 
@@ -77,18 +77,23 @@ def main():
     with codecs.open(opt.train_audio_tgt, "r", "utf-8") as audio_tgt_file:
         for line in audio_tgt_file:
           num_audio_instances += 1
-          audio_tgt_line = audio_tgt_file.readline().strip().split()
+          audio_tgt_line = line.strip().split()
           for tok in audio_tgt_line[opt.start_idx:]:
               audio_word_counter[tok] += 1
         audio_tgt_file.close()
     audio_tgt_vocab = Vocab(audio_word_counter)
 
     mix_fac = num_aug_instances / (num_audio_instances + num_aug_instances)
+    print(mix_fac, 'mix_fac')
 
     fields = onmt.IO.ONMTDataset.get_fields(nFeatures)
     print("Building training...")
     train = onmt.IO.ONMTDataset(opt.train_aug_src, opt.train_aug_tgt, fields, opt)
     train.mix_fac = mix_fac
+    train.num_aug_instances = num_aug_instances
+    train.num_audio_instances = num_audio_instances
+    print(train.num_audio_instances, 'num_audio_instances in train.pt')
+    print(train.num_aug_instances, 'num_aug_instances in train.pt')
     train.data_names = data_names
 
     print("Building vocab...")
@@ -96,7 +101,17 @@ def main():
     train.fields["tgt"].vocab = onmt.IO.merge_vocabs([train.fields["tgt"].vocab, audio_tgt_vocab])
 
     print("Building valid...")
-    valid = onmt.IO.ONMTDataset(opt.valid_tgt, opt.valid_tgt, fields, opt)
+    valid = onmt.IO.ONMTDataset(opt.valid_tgt, opt.valid_tgt, fields, opt) 
+    num_audio_instances = 0
+    with codecs.open(opt.valid_tgt, "r", "utf-8") as audio_tgt_file:
+        for line in audio_tgt_file:
+          num_audio_instances += 1
+    valid.mix_fac = 0.0
+    valid.num_audio_instances = num_audio_instances
+    valid.num_aug_instances = 0
+    print(valid.num_audio_instances, 'num_audio_instances in valid.pt')
+    print(valid.num_aug_instances, 'num_aug_instances in valid.pt')
+    valid.data_names = data_names
     print("Saving train/valid/fields")
 
     # Can't save fields, so remove/reconstruct at training time.
