@@ -5,7 +5,6 @@ import argparse
 import torch
 import torch.nn as nn
 from torch import cuda
-import pdb
 import onmt
 import onmt.Models
 import onmt.ModelConstructor
@@ -101,15 +100,21 @@ def make_train_data_iter(train_data, opt):
                 repeat=False)
 
 
-def make_hybrid_train_data_iter(train_data, opt, data_names):
+def make_hybrid_train_data_iter(train_data, opt):
+    assert hasattr(train_data, 'num_aug_instances')
+    assert hasattr(train_data, 'num_audio_instances')
+    assert hasattr(train_data, 'mix_fac')
+    assert hasattr(train_data, 'data_names')
     return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.train", 
            augmenting_file = opt.data + ".aug.train", 
            vocab_file = opt.data + ".vocab.pt",
-           augmenting_data_names = data_names, 
+           augmenting_data_names = train_data.data_names, 
            mix_factor = train_data.mix_fac if opt.train_with_aug == 1 else 0.0, 
+           num_aug_instances = train_data.num_aug_instances,
+           num_audio_instances = train_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
@@ -127,15 +132,22 @@ def make_valid_data_iter(valid_data, opt):
                 train=False, sort=True)
 
 
-def make_hybrid_valid_data_iter(train_data, opt, data_names):
+def make_hybrid_valid_data_iter(train_data, opt):
+    assert hasattr(train_data, 'num_aug_instances')
+    assert hasattr(train_data, 'num_audio_instances')
+    assert hasattr(train_data, 'mix_fac')
+    assert hasattr(train_data, 'data_names')
+    assert train_data.mix_fac == 0.0
     return onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.valid", 
            augmenting_file = None, 
            vocab_file = opt.data + ".vocab.pt",
-           augmenting_data_names = data_names, 
+           augmenting_data_names = train_data.data_names, 
            mix_factor = 0.0,
+           num_aug_instances = train_data.num_aug_instances,
+           num_audio_instances = train_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
@@ -164,8 +176,9 @@ def train_model(model, train_data, valid_data, fields, optim):
     if opt.encoder_type == "hybrid":
       assert opt.num_concat_flags == (1+len(train_data.data_names)) or opt.num_concat_flags == 0, 'num_concat_flags should be \
       either 0 or equal to the size of the flag vector'
-      train_iter = make_hybrid_train_data_iter(train_data, opt, train_data.data_names)
-      valid_iter = make_hybrid_valid_data_iter(valid_data, opt, train_data.data_names)
+      assert len(train_data.data_names) == len(valid_data.data_names)
+      train_iter = make_hybrid_train_data_iter(train_data, opt)
+      valid_iter = make_hybrid_valid_data_iter(valid_data, opt)
     else:
       train_iter = make_train_data_iter(train_data, opt)
       valid_iter = make_valid_data_iter(valid_data, opt)
