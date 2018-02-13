@@ -179,8 +179,10 @@ class HybridEncoder(RNNEncoder):
             #print(final_input.shape, 'final_input shape')
 
         outputs = packed_emb
+        hidden_t = []
         for idx, rnn in enumerate(self.rnn_list):
-            outputs, hidden_t = rnn(outputs, hidden)
+            outputs, (h_t, c_t) = rnn(outputs, hidden)
+            hidden_t.append((h_t, c_t))
             if idx < 2:
                 outputs, lengths = self.subsample(outputs, lengths)
             else:
@@ -200,7 +202,10 @@ class HybridEncoder(RNNEncoder):
         else:
             pass       
 
-        return hidden_t, outputs
+        hl, cl = zip(*hidden_t)
+        hidden_t = torch.cat(hl, dim=0)  
+        cell_t = torch.cat(cl, dim=0)
+        return (hidden_t, cell_t), outputs
 
 
 class RNNDecoderBase(nn.Module):
