@@ -11,38 +11,59 @@ import numpy as np
 
 ExInstance = namedtuple('ExInstance', 'audio_src aug_src flags src_length tgt_length tgt')
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, vocab_file,  augmenting_data_names, mix_factor, num_aug_instances, num_audio_instances, embedding_size, device):
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, vocab_file,  augmenting_data_names, mix_factor, mix_factor_decay,
+            num_aug_instances, num_audio_instances, embedding_size, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
       self.num_audio_instances =  num_audio_instances
       self.audio_src_reader_file = audio_file + '.src'
       self.audio_tgt_reader_file = audio_file + '.tgt'
       self.tgt_vocab = torch.load(vocab_file)[1][1]
-      self.aug_src_vocab = torch.load(vocab_file)[0][1] 
       self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.flags_size = len(augmenting_data_names) + 1
       self.mix_factor = mix_factor
+      self.mix_factor_decay = mix_factor_decay
       self.device = device
-      self.num_aug_instances = 0 #num_aug_instances
       self.use_aug = self.train_mode and (self.mix_factor > 0.0) and (augmenting_file is not None)
       if self.use_aug:
+          self.aug_src_vocab = torch.load(vocab_file)[0][1] 
           self.aug_src_reader_file = augmenting_file + '.src'
           self.aug_tgt_reader_file = augmenting_file + '.tgt'
           self.num_aug_instances = num_aug_instances
+      else:
+          self.aug_src_vocab = None #torch.load(vocab_file)[0][1] 
+          self.aug_src_reader_file = None
+          self.aug_tgt_reader_file = None
+          self.mix_factor = 0.0
+          self.num_aug_instances = 0 #num_aug_instances
       self.embedding_size = embedding_size
+      self.epoch_counter = 0
+
+    def init_audio_reader(self,):
+       print('initializing audio reader.. train_mode:', self.train_mode) 
+       self.audio_src_reader = lazy_io.read_dict_scp(self.audio_src_reader_file)
+       self.audio_tgt_reader = open(self.audio_tgt_reader_file, 'r')
+
+    def init_aug_reader(self,):
+       print('initializing aug reader... train_mode:', self.train_mode) 
+       self.aug_src_reader = open(self.aug_src_reader_file, 'r')
+       self.aug_tgt_reader = open(self.aug_tgt_reader_file, 'r')
+
+
 
     def create_batches(self):
        #initialize file readers to starting point
-       self.audio_src_reader = lazy_io.read_dict_scp(self.audio_src_reader_file)
-       self.audio_tgt_reader = open(self.audio_tgt_reader_file, 'r')
-       if self.use_aug:
-           self.aug_src_reader = open(self.aug_src_reader_file, 'r')
-           self.aug_tgt_reader = open(self.aug_tgt_reader_file, 'r')
-
+       self.init_audio_reader()
        if self.train_mode:
-            self.batches = self.pool(self.data())
+           self.epoch_counter += 1
+           self.mix_factor *= self.mix_factor_decay
+           #self.mix_factor = self.mix_factor if self.mix_factor > 0.1 else 0.1
+           print('creating batch epoch:%d mix_factor:%.4f' %(self.epoch_counter, self.mix_factor))
+           if self.use_aug:
+               self.init_aug_reader()
+           self.batches = self.pool(self.data())
        else:
-            self.batches = self.pool(self.data(), False, 1)
+           self.batches = self.pool(self.data(), False, 1)
 
     def __len__(self):
       s = self.num_audio_instances + self.num_aug_instances
@@ -55,6 +76,7 @@ class HybridOrderedIterator:
 
     def get_next_aug_pair(self):
         if self.use_aug:
+            #print('next aug')
             aug_src_line = self.aug_src_reader.readline()
             aug_tgt_line = self.aug_tgt_reader.readline()
             src_ok = aug_src_line is not None and aug_src_line.strip() != ''
@@ -62,7 +84,10 @@ class HybridOrderedIterator:
             if src_ok and tgt_ok:
                 return aug_src_line, aug_tgt_line
             else:
-                return None, None
+                self.init_aug_reader() #re initialize and loop back
+                aug_src_line = self.aug_src_reader.readline()
+                aug_tgt_line = self.aug_tgt_reader.readline()
+                return aug_src_line, aug_tgt_line
         else:
             return None, None
 
@@ -73,14 +98,15 @@ class HybridOrderedIterator:
             audio_src = self.audio_src_reader[idx]
             return audio_src, audio_tgt 
         else:
+            print('end of audio reader...')
             return None, None
 
-    def is_end(self, audio_pair, aug_pair):
+    def is_end(self, audio_pair): #, aug_pair):
         #is_done = [i[0] is not  None for i in pairs] #True if pair is not None
         #return functools.reduce(lambda x,y: x or y, is_done) # True i)f any item in is_done is True
-        is_aug_end = aug_pair[1] == None 
+        #is_aug_end = aug_pair[1] == None 
         is_audio_end = audio_pair[1] == None
-        return is_aug_end and is_audio_end
+        return is_audio_end # and is_aug_end
 
     def _make_tensors(self, pair, is_audio):
         src, tgt = pair
@@ -115,14 +141,14 @@ class HybridOrderedIterator:
     def data(self):
         audio_pair = self.get_next_audio_pair()
         aug_pair = self.get_next_aug_pair()
-        while not self.is_end(audio_pair, aug_pair):
-            if np.random.rand() > self.mix_factor and audio_pair[1] != None:
-                #print('audio', self.train_mode)
+        while not self.is_end(audio_pair): #, aug_pair):
+            if np.random.rand() > self.mix_factor: 
+                #print('audio', self.train_mode, self.epoch_counter)
                 tmp = self._make_tensors(audio_pair, True)
                 audio_pair = self.get_next_audio_pair() 
                 yield tmp
             elif aug_pair[1] != None:
-                #print('aug', self.train_mode)
+                #print('aug', self.train_mode, self.epoch_counter)
                 tmp = self._make_tensors(aug_pair, False)
                 aug_pair = self.get_next_aug_pair()
                 yield tmp
@@ -173,7 +199,7 @@ class HybridOrderedIterator:
             minibatch = []
             yield merged_minibatch
 
-    def pool(self, data, do_shuffle=True, bucket_factor = 100): #TODO: bucket_factor should be small for toy data
+    def pool(self, data, do_shuffle=True, bucket_factor = 20): #TODO: bucket_factor should be small for toy data
         """Sort within buckets, then batch, then shuffle batches.
         Partitions data into chunks of size 100*batch_size, sorts examples within
         each chunk using sort_key, then batch these examples and shuffle the

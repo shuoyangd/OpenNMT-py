@@ -89,7 +89,7 @@ def main():
     fields = onmt.IO.ONMTDataset.get_fields(nFeatures)
     print("Building training...")
     train = onmt.IO.ONMTDataset(opt.train_aug_src, opt.train_aug_tgt, fields, opt)
-    train.mix_fac = mix_fac
+    #train.mix_fac = mix_fac
     train.num_aug_instances = num_aug_instances
     train.num_audio_instances = num_audio_instances
     print(train.num_audio_instances, 'num_audio_instances in train.pt')
@@ -106,7 +106,7 @@ def main():
     with codecs.open(opt.valid_tgt, "r", "utf-8") as audio_tgt_file:
         for line in audio_tgt_file:
           num_audio_instances += 1
-    valid.mix_fac = 0.0
+    #valid.mix_fac = 0.0
     valid.num_audio_instances = num_audio_instances
     valid.num_aug_instances = 0
     print(valid.num_audio_instances, 'num_audio_instances in valid.pt')

@@ -103,7 +103,6 @@ def make_train_data_iter(train_data, opt):
 def make_hybrid_train_data_iter(train_data, opt):
     assert hasattr(train_data, 'num_aug_instances')
     assert hasattr(train_data, 'num_audio_instances')
-    assert hasattr(train_data, 'mix_fac')
     assert hasattr(train_data, 'data_names')
     return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
@@ -112,7 +111,9 @@ def make_hybrid_train_data_iter(train_data, opt):
            augmenting_file = opt.data + ".aug.train", 
            vocab_file = opt.data + ".vocab.pt",
            augmenting_data_names = train_data.data_names, 
-           mix_factor = train_data.mix_fac if opt.train_with_aug == 1 else 0.0, 
+           #mix_factor = train_data.mix_fac if opt.train_with_aug == 1 else 0.0, 
+           mix_factor = opt.mix_factor if opt.train_with_aug == 1 else 0.0,
+           mix_factor_decay = opt.mix_factor_decay,
            num_aug_instances = train_data.num_aug_instances,
            num_audio_instances = train_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
@@ -135,9 +136,7 @@ def make_valid_data_iter(valid_data, opt):
 def make_hybrid_valid_data_iter(train_data, opt):
     assert hasattr(train_data, 'num_aug_instances')
     assert hasattr(train_data, 'num_audio_instances')
-    assert hasattr(train_data, 'mix_fac')
     assert hasattr(train_data, 'data_names')
-    assert train_data.mix_fac == 0.0
     return onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
@@ -146,6 +145,7 @@ def make_hybrid_valid_data_iter(train_data, opt):
            vocab_file = opt.data + ".vocab.pt",
            augmenting_data_names = train_data.data_names, 
            mix_factor = 0.0,
+           mix_factor_decay = 0.0,
            num_aug_instances = train_data.num_aug_instances,
            num_audio_instances = train_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
