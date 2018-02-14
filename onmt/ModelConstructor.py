@@ -10,7 +10,7 @@ import onmt.Models
 import onmt.modules
 from onmt.IO import ONMTDataset
 from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
-                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, HybridEncoder
+                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, HybridEncoder, HybridDualEncoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder
@@ -68,6 +68,9 @@ def make_encoder(opt, embeddings):
         return MeanEncoder(opt.enc_layers, embeddings)
     elif opt.encoder_type == "hybrid":
         return HybridEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
+                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat)
+    elif opt.encoder_type == "hybrid_dual":
+        return HybridDualEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
                              opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat)
     else:
         # "rnn" or "brnn"

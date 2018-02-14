@@ -28,7 +28,7 @@ if opt.word_vec_size != -1:
 #    opt.enc_layers = opt.layers
 #    opt.dec_layers = opt.layers
 
-opt.brnn = (opt.encoder_type == "brnn" or opt.encoder_type == "hybrid")
+opt.brnn = (opt.encoder_type == "brnn" or opt.encoder_type.startswith("hybrid"))
 if opt.seed > 0:
     torch.manual_seed(opt.seed)
 
@@ -160,7 +160,7 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
     if opt.copy_attn:
         compute = onmt.modules.CopyGeneratorLossCompute(
             model.generator, tgt_vocab, dataset, opt.copy_attn_force)
-    elif opt.encoder_type == "hybrid":
+    elif opt.encoder_type.startswith("hybrid"):
         compute = onmt.Loss.ASRLossCompute(model.generator, tgt_vocab)
     else:
         compute = onmt.Loss.NMTLossCompute(model.generator, tgt_vocab)
@@ -173,7 +173,7 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
 
 def train_model(model, train_data, valid_data, fields, optim):
 
-    if opt.encoder_type == "hybrid":
+    if opt.encoder_type.startswith("hybrid"):
       assert opt.num_concat_flags == (1+len(train_data.data_names)) or opt.num_concat_flags == 0, 'num_concat_flags should be \
       either 0 or equal to the size of the flag vector'
       assert len(train_data.data_names) == len(valid_data.data_names)

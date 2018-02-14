@@ -39,7 +39,7 @@ def model_opts(parser):
 
     # RNN Options
     parser.add_argument('-encoder_type', type=str, default='rnn',
-                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid'],
+                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid', 'hybrid_dual'],
                         help="""Type of encoder layer to use.""")
     parser.add_argument('-decoder_type', type=str, default='rnn',
                         choices=['rnn', 'transformer', 'cnn', 'hybrid'],
