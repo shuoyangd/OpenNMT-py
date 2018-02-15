@@ -247,11 +247,9 @@ class Translator(object):
         #  (3) convert indexes to words
         predBatch, goldBatch = [], []
         if not isinstance(batch, tuple):
-            # src = batch.src[0].data.index_select(1, perm)
-            # src = batch[0].data.index_select(1, perm)
+            src = batch.src[0].data.index_select(1, perm)
             if self.opt.tgt:
-                # tgt = batch.tgt.data.index_select(1, perm)
-                tgt = batch[-1].data.index_select(1, perm)
+                tgt = batch.tgt.data.index_select(1, perm)
             for b in range(batch_size):
                 src_vocab = data.src_vocabs[inds[b]]
                 predBatch.append(
@@ -277,4 +275,4 @@ class Translator(object):
                 if self.opt.tgt:
                     goldBatch.append(
                         self.buildTargetTokensWithoutSource(tgt[1:, b], None))
-            return predBatch, goldBatch, predScore, goldScore, [], []
+            return predBatch, goldBatch, predScore, goldScore, [], src
