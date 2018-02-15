@@ -9,11 +9,15 @@ import torch
 import onmt
 import onmt.IO
 import opts
+import pdb
 from itertools import takewhile, count
 try:
     from itertools import zip_longest
 except ImportError:
     from itertools import izip_longest as zip_longest
+
+from onmt.Models import HybridEncoder, HybridDualEncoder
+import onmt.modules.HybridOrderedIterator
 
 parser = argparse.ArgumentParser(description='translate.py')
 opts.add_md_help_argument(parser)
@@ -55,12 +59,32 @@ def main():
     if opt.dump_beam != "":
         import json
         translator.initBeamAccum()
+    opt.tgt = None
     data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translator.fields, None)
+    num_audio_instances = 0
+    for line in open(opt.src):
+        num_audio_instances += 1
 
-    test_data = onmt.IO.OrderedIterator(
-        dataset=data, device=opt.gpu,
-        batch_size=opt.batch_size, train=False, sort=False,
-        shuffle=False)
+    if isinstance(translator.model.encoder, HybridEncoder) or \
+            isinstance(translator.model.encoder, HybridDualEncoder):
+        test_data = onmt.modules.HybridOrderedIterator(
+           train_mode = False, 
+           batch_size = opt.batch_size, 
+           audio_file = ".".join(opt.src.split(".")[:-1]),  # get rid of the .src suffix
+           augmenting_file = None, 
+           vocab_file = opt.vocab,
+           augmenting_data_names = [ str(i) for i in range(translator.model.encoder.num_concat_flags - 1) ],  # pseudo augmenting data names
+           mix_factor = 0.0,
+           mix_factor_decay = 0.0,
+           num_aug_instances = 0,
+           num_audio_instances = num_audio_instances,
+           embedding_size = translator.model.encoder.embeddings.embedding_size,
+           device = opt.gpu if opt.gpu else -1)
+    else:
+        test_data = onmt.IO.OrderedIterator(
+            dataset=data, device=opt.gpu,
+            batch_size=opt.batch_size, train=False, sort=False,
+            shuffle=False)
 
     counter = count(1)
     for batch in test_data:
@@ -90,11 +114,12 @@ def main():
 
             if opt.verbose:
                 sent_number = next(counter)
-                words = get_src_words(
-                    src_sent, translator.fields["src"].vocab.itos)
+                # We cannot display source
+                # words = get_src_words(
+                #     src_sent, translator.fields["src"].vocab.itos)
 
-                os.write(1, bytes('\nSENT %d: %s\n' %
-                                  (sent_number, words), 'UTF-8'))
+                # os.write(1, bytes('\nSENT %d: %s\n' %
+                #                   (sent_number, words), 'UTF-8'))
 
                 best_pred = n_best_preds[0]
                 best_score = pred_score[0]

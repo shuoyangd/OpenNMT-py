@@ -245,13 +245,15 @@ def train_opts(parser):
 def translate_opts(parser):
     parser.add_argument('-model', required=True,
                         help='Path to model .pt file')
-    parser.add_argument('-src',   required=True,
+    parser.add_argument('-src', required=True,
                         help="""Source sequence to decode (one line per
                         sequence)""")
-    parser.add_argument('-src_img_dir',   default="",
-                        help='Source image directory')
-    parser.add_argument('-tgt',
-                        help='True target sequence (optional)')
+    # parser.add_argument('-src_img_dir',   default="",
+    #                     help='Source image directory')
+    # parser.add_argument('-tgt',
+    #                     help='True target sequence (optional)')
+    parser.add_argument('-vocab', required=True,
+                        help="Binary Vocabulary dump")
     parser.add_argument('-output', default='pred.txt',
                         help="""Path to output the predictions (each line will
                         be the decoded sequence""")

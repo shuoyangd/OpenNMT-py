@@ -40,12 +40,12 @@ class HybridOrderedIterator:
       self.epoch_counter = 0
 
     def init_audio_reader(self,):
-       print('initializing audio reader.. train_mode:', self.train_mode) 
+       # print('initializing audio reader.. train_mode:', self.train_mode) 
        self.audio_src_reader = lazy_io.read_dict_scp(self.audio_src_reader_file)
        self.audio_tgt_reader = open(self.audio_tgt_reader_file, 'r')
 
     def init_aug_reader(self,):
-       print('initializing aug reader... train_mode:', self.train_mode) 
+       # print('initializing aug reader... train_mode:', self.train_mode) 
        self.aug_src_reader = open(self.aug_src_reader_file, 'r')
        self.aug_tgt_reader = open(self.aug_tgt_reader_file, 'r')
 
@@ -98,7 +98,7 @@ class HybridOrderedIterator:
             audio_src = self.audio_src_reader[idx]
             return audio_src, audio_tgt 
         else:
-            print('end of audio reader...')
+            # print('end of audio reader...')
             return None, None
 
     def is_end(self, audio_pair): #, aug_pair):
@@ -216,10 +216,10 @@ class HybridOrderedIterator:
               random_shuffler(p_list)
             for b in p_list:
                 audio_src_batch, aug_src_batch, flag_batch, sl_batch, tl_batch, tgt_batch = zip(*b)
-                audio_src_batch = Variable(torch.cat(audio_src_batch, dim=1))
-                aug_src_batch = Variable(torch.cat(aug_src_batch, dim=1)).unsqueeze(2)
-                flag_batch = Variable(torch.cat(flag_batch, dim=1))
-                tgt_batch = Variable(torch.cat(tgt_batch, dim=1)).unsqueeze(2)
+                audio_src_batch = Variable(torch.cat(audio_src_batch, dim=1), volatile=(not self.train_mode))
+                aug_src_batch = Variable(torch.cat(aug_src_batch, dim=1), volatile=(not self.train_mode)).unsqueeze(2)
+                flag_batch = Variable(torch.cat(flag_batch, dim=1), volatile=(not self.train_mode))
+                tgt_batch = Variable(torch.cat(tgt_batch, dim=1), volatile=(not self.train_mode)).unsqueeze(2)
                 sl_batch = torch.LongTensor(list(sl_batch))
                 tl_batch = torch.LongTensor(list(tl_batch))
                 if self.device != -1: 

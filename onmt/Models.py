@@ -171,7 +171,6 @@ class HybridEncoder(RNNEncoder):
         else:
             pass
 
-        print(type(lengths))
         if lengths is not None and not self.no_pack_padded_seq:
             # Lengths data is wrapped inside a Variable.
             lengths = lengths.view(-1).tolist()

@@ -7,7 +7,7 @@ import onmt.ModelConstructor
 import onmt.modules
 import onmt.IO
 from onmt.Utils import use_gpu
-
+import pdb
 
 class Translator(object):
     def __init__(self, opt, dummy_opt={}):
@@ -59,43 +59,75 @@ class Translator(object):
                     tokens[i] = self.fields["src"].vocab.itos[src[maxIndex[0]]]
         return tokens
 
-    def _runTarget(self, batch, data):
+    def buildTargetTokensWithoutSource(self, pred, copy_vocab):
+        vocab = self.fields["tgt"].vocab
+        tokens = []
+        for tok in pred:
+            if tok < len(vocab):
+                tokens.append(vocab.itos[tok])
+            else:
+                tokens.append(copy_vocab.itos[tok - len(vocab)])
+            if tokens[-1] == onmt.IO.EOS_WORD:
+                tokens = tokens[:-1]
+                break
 
-        _, src_lengths = batch.src
-        src = onmt.IO.make_features(batch, 'src')
-        tgt_in = onmt.IO.make_features(batch, 'tgt')[:-1]
+        return tokens
 
-        #  (1) run the encoder on the src
-        encStates, context = self.model.encoder(src, src_lengths)
-        decStates = self.model.decoder.init_decoder_state(
-                                        src, context, encStates)
-
-        #  (2) if a target is specified, compute the 'goldScore'
-        #  (i.e. log likelihood) of the target under the model
-        tt = torch.cuda if self.opt.cuda else torch
-        goldScores = tt.FloatTensor(batch.batch_size).fill_(0)
-        decOut, decStates, attn = self.model.decoder(
-            tgt_in, context, decStates)
-
-        tgt_pad = self.fields["tgt"].vocab.stoi[onmt.IO.PAD_WORD]
-        for dec, tgt in zip(decOut, batch.tgt[1:].data):
-            # Log prob of each word.
-            out = self.model.generator.forward(dec)
-            tgt = tgt.unsqueeze(1)
-            scores = out.data.gather(1, tgt)
-            scores.masked_fill_(tgt.eq(tgt_pad), 0)
-            goldScores += scores
-        return goldScores
+#     def _runTarget(self, batch, data):
+# 
+#         if not isinstance(batch, tuple):
+#             batch_size = batch.batch_size
+#             _, src_lengths = batch.src
+#             src = onmt.IO.make_features(batch, 'src')
+#             tgt_in = onmt.IO.make_features(batch, 'tgt')[:-1]
+#         else:
+#             batch_size = batch[0].size(1)
+#             src = (batch[0], batch[1], batch[2])
+#             src_lengths = batch[3]
+#             tgt_in = batch[-1]
+# 
+#         #  (1) run the encoder on the src
+#         encStates, context = self.model.encoder(src, src_lengths)
+#         decStates = self.model.decoder.init_decoder_state(
+#                                         src, context, encStates)
+# 
+#         #  (2) if a target is specified, compute the 'goldScore'
+#         #  (i.e. log likelihood) of the target under the model
+#         tt = torch.cuda if self.opt.cuda else torch
+#         goldScores = tt.FloatTensor(batch_size).fill_(0)
+#         decOut, decStates, attn = self.model.decoder(
+#             tgt_in, context, decStates)
+# 
+#         tgt_pad = self.fields["tgt"].vocab.stoi[onmt.IO.PAD_WORD]
+#         for dec, tgt in zip(decOut, batch.tgt[1:].data):
+#             # Log prob of each word.
+#             out = self.model.generator.forward(dec)
+#             tgt = tgt.unsqueeze(1)
+#             scores = out.data.gather(1, tgt)
+#             scores.masked_fill_(tgt.eq(tgt_pad), 0)
+#             goldScores += scores
+#         return goldScores
 
     def translateBatch(self, batch, dataset):
         beam_size = self.opt.beam_size
-        batch_size = batch.batch_size
+        if not isinstance(batch, tuple):
+            batch_size = batch.batch_size
+        else:
+            batch_size = batch[0].size(1)
 
         # (1) Run the encoder on the src.
-        _, src_lengths = batch.src
-        src = onmt.IO.make_features(batch, 'src')
-        encStates, context = self.model.encoder(src, src_lengths)
-        decStates = self.model.decoder.init_decoder_state(
+        if isinstance(batch, tuple):
+            src = (batch[0], batch[1], batch[2])
+            tgt = batch[-1]
+            src_lengths = batch[3]
+            encStates, context = self.model.encoder(src, src_lengths)
+            decStates = self.model.decoder.init_decoder_state(
+                                        src, context, encStates)
+        else:
+            _, src_lengths = batch.src
+            src = onmt.IO.make_features(batch, 'src')
+            encStates, context = self.model.encoder(src, src_lengths)
+            decStates = self.model.decoder.init_decoder_state(
                                         src, context, encStates)
 
         #  (1b) Initialize for the decoder.
@@ -105,8 +137,9 @@ class Translator(object):
 
         # Repeat everything beam_size times.
         context = rvar(context.data)
-        src = rvar(src.data)
-        srcMap = rvar(batch.src_map.data)
+        # src = rvar(src.data)
+        # srcMap = rvar(batch.src_map.data)
+        srcMap = None  # only used in copy attention, don't need to care
         decStates.repeat_beam_size_times(beam_size)
         scorer = None
         # scorer=onmt.GNMTGlobalScorer(0.3, 0.4)
@@ -171,10 +204,11 @@ class Translator(object):
                 b.advance(out[:, j],  unbottle(attn["std"]).data[:, j])
                 decStates.beam_update(j, b.getCurrentOrigin(), beam_size)
 
-        if "tgt" in batch.__dict__:
-            allGold = self._runTarget(batch, dataset)
-        else:
-            allGold = [0] * batch_size
+        # if "tgt" in batch.__dict__:
+        #     allGold = self._runTarget(batch, dataset)
+        # else:
+        #     allGold = [0] * batch_size
+        allGold = [0] * batch_size
 
         # (3) Package everything up.
         allHyps, allScores, allAttn = [], [], []
@@ -194,30 +228,53 @@ class Translator(object):
 
     def translate(self, batch, data):
         #  (1) convert words to indexes
-        batch_size = batch.batch_size
+        if not isinstance(batch, tuple):
+            batch_size = batch.batch_size
+        else:
+            batch_size = batch[0].size(1)
 
         #  (2) translate
         pred, predScore, attn, goldScore = self.translateBatch(batch, data)
         assert(len(goldScore) == len(pred))
-        pred, predScore, attn, goldScore, i = list(zip(
-            *sorted(zip(pred, predScore, attn, goldScore,
-                        batch.indices.data),
-                    key=lambda x: x[-1])))
-        inds, perm = torch.sort(batch.indices.data)
+        # pred, predScore, attn, goldScore, i = list(zip(
+        #     *sorted(zip(pred, predScore, attn, goldScore,
+        #                 batch.indices.data),
+        #             key=lambda x: x[-1])))
+        # inds, perm = torch.sort(batch.indices.data)
+        inds = torch.LongTensor([0])
+        perm = torch.LongTensor([0])
 
         #  (3) convert indexes to words
         predBatch, goldBatch = [], []
-        src = batch.src[0].data.index_select(1, perm)
-        if self.opt.tgt:
-            tgt = batch.tgt.data.index_select(1, perm)
-        for b in range(batch_size):
-            src_vocab = data.src_vocabs[inds[b]]
-            predBatch.append(
-                [self.buildTargetTokens(pred[b][n], src[:, b],
-                                        attn[b][n], src_vocab)
-                 for n in range(self.opt.n_best)])
+        if not isinstance(batch, tuple):
+            # src = batch.src[0].data.index_select(1, perm)
+            # src = batch[0].data.index_select(1, perm)
             if self.opt.tgt:
-                goldBatch.append(
-                    self.buildTargetTokens(tgt[1:, b], src[:, b],
-                                           None, None))
-        return predBatch, goldBatch, predScore, goldScore, attn, src
+                # tgt = batch.tgt.data.index_select(1, perm)
+                tgt = batch[-1].data.index_select(1, perm)
+            for b in range(batch_size):
+                src_vocab = data.src_vocabs[inds[b]]
+                predBatch.append(
+                    [self.buildTargetTokens(pred[b][n], src[:, b],
+                                            attn[b][n], src_vocab)
+                     for n in range(self.opt.n_best)])
+                if self.opt.tgt:
+                    goldBatch.append(
+                        self.buildTargetTokens(tgt[1:, b], src[:, b],
+                                               None, None))
+            return predBatch, goldBatch, predScore, goldScore, attn, src
+        else:
+            src = batch[0].data.index_select(1, perm)
+            if self.opt.tgt:
+                tgt = batch[-1].data.index_select(1, perm)
+            # if attn is not None:
+            #     raise NotImplementedError("Attention output cannot be used with HybridEncoder.")
+            for b in range(batch_size):
+                src_vocab = data.src_vocabs[inds[b]]
+                predBatch.append(
+                    [self.buildTargetTokensWithoutSource(pred[b][n], src_vocab)
+                     for n in range(self.opt.n_best)])
+                if self.opt.tgt:
+                    goldBatch.append(
+                        self.buildTargetTokensWithoutSource(tgt[1:, b], None))
+            return predBatch, goldBatch, predScore, goldScore, [], []
