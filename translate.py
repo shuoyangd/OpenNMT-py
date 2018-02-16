@@ -9,7 +9,6 @@ import torch
 import onmt
 import onmt.IO
 import opts
-import pdb
 from itertools import takewhile, count
 try:
     from itertools import zip_longest
@@ -61,7 +60,6 @@ def main():
         translator.initBeamAccum()
     opt.tgt = None
     data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translator.fields, None)
-    pdb.set_trace()
     num_audio_instances = 0
     for line in open(opt.src):
         num_audio_instances += 1
@@ -73,8 +71,6 @@ def main():
            batch_size = opt.batch_size, 
            audio_file = ".".join(opt.src.split(".")[:-1]),  # get rid of the .src suffix
            augmenting_file = None, 
-           #vocab_file = opt.vocab,
-           #vocab_obj = data.src_vocabs[0],
            tgt_vocab = translator.fields['tgt'].vocab,
            src_vocab = translator.fields['src'].vocab,
            augmenting_data_names = data_names,
