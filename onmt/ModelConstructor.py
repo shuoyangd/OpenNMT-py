@@ -68,10 +68,10 @@ def make_encoder(opt, embeddings):
         return MeanEncoder(opt.enc_layers, embeddings)
     elif opt.encoder_type == "hybrid":
         return HybridEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
-                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat)
+                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat, opt.do_subsample)
     elif opt.encoder_type == "hybrid_dual":
         return HybridDualEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
-                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat)
+                             opt.rnn_size, opt.dropout, embeddings, opt.num_concat_flags, opt.add_noise, opt.use_highway_concat, opt.do_subsample)
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,

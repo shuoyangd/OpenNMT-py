@@ -11,18 +11,20 @@ import numpy as np
 
 ExInstance = namedtuple('ExInstance', 'audio_src aug_src flags src_length tgt_length tgt')
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab,  augmenting_data_names, mix_factor, mix_factor_decay,
-            num_aug_instances, num_audio_instances, embedding_size, device):
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab,  augmenting_data_names, init_mix_factor, end_mix_factor,
+            num_aug_instances, num_audio_instances, embedding_size, num_epochs, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
+      self.num_epochs = num_epochs
       self.num_audio_instances =  num_audio_instances
       self.audio_src_reader_file = audio_file + '.src'
       self.audio_tgt_reader_file = audio_file + '.tgt'
       self.tgt_vocab = tgt_vocab #torch.load(vocab_file)[1][1]
       self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.flags_size = len(augmenting_data_names) + 1
-      self.mix_factor = mix_factor
-      self.mix_factor_decay = mix_factor_decay
+      self.mix_factor = init_mix_factor
+      self.end_mix_factor = end_mix_factor
+      self.mix_step = (self.mix_factor - self.end_mix_factor) / float(num_epochs)
       self.device = device
       self.use_aug = self.train_mode and (self.mix_factor > 0.0) and (augmenting_file is not None)
       if self.use_aug:
@@ -56,8 +58,9 @@ class HybridOrderedIterator:
        self.init_audio_reader()
        if self.train_mode:
            self.epoch_counter += 1
-           self.mix_factor *= self.mix_factor_decay
-           #self.mix_factor = self.mix_factor if self.mix_factor > 0.1 else 0.1
+           #self.mix_factor *= self.mix_factor_decay
+           self.mix_factor -= self.mix_step
+           self.mix_factor = self.mix_factor if self.mix_factor > self.end_mix_factor else self.end_mix_factor
            print('creating batch epoch:%d mix_factor:%.4f' %(self.epoch_counter, self.mix_factor))
            if self.use_aug:
                self.init_aug_reader()
