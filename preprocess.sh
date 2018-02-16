@@ -15,4 +15,4 @@ export PYTHONPATH=$PYTHONPATH:$OPENMNTPATH/onmt/modules
 DATA_TYPE=$1
 AUG_TYPE=$2
 #python $OPENMNTPATH/prepare_aug_data.py --folder ${PROJECT_DIR}/data/${DATA_TYPE}/ --prefix_list ${AUG_TYPE} --prefix_out ${DATA_TYPE}
-python $OPENMNTPATH/preprocess.py -train_aug_src $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE}.${AUG_TYPE}.aug.train.src -train_aug_tgt $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE}.${AUG_TYPE}.aug.train.tgt -train_audio_tgt $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE}.${AUG_TYPE}.audio.train.tgt -valid_tgt $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE}.${AUG_TYPE}.audio.valid.tgt -save_data $PROJECT_DIR/data/${DATA_TYPE}/${DATA_TYPE}.${AUG_TYPE} -start_idx 1
+python $OPENMNTPATH/preprocess.py -train_aug_src $PROJECT_DIR/data/${DATA_TYPE}/${AUG_TYPE}/${DATA_TYPE}.${AUG_TYPE}.src -train_aug_tgt $PROJECT_DIR/data/${DATA_TYPE}/${AUG_TYPE}/${DATA_TYPE}.${AUG_TYPE}.tgt -train_audio_tgt $PROJECT_DIR/data/${DATA_TYPE}/${AUG_TYPE}/${DATA_TYPE}.audio.train.tgt -valid_tgt $PROJECT_DIR/data/${DATA_TYPE}/${AUG_TYPE}/${DATA_TYPE}.audio.valid.tgt -save_data $PROJECT_DIR/data/${DATA_TYPE}/${AUG_TYPE}/${DATA_TYPE} -start_idx 1
