@@ -11,7 +11,6 @@ import onmt.ModelConstructor
 import onmt.modules
 from onmt.Utils import aeq, use_gpu
 import opts
-
 parser = argparse.ArgumentParser(description='train.py')
 
 # opts.py
@@ -104,14 +103,16 @@ def make_hybrid_train_data_iter(train_data, opt):
     assert hasattr(train_data, 'num_aug_instances')
     assert hasattr(train_data, 'num_audio_instances')
     assert hasattr(train_data, 'data_names')
+    assert opt.mix_factor < 1.0
+    assert opt.mix_factor_decay <= 1.0
     return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.train", 
            augmenting_file = opt.data + ".aug.train", 
-           vocab_file = opt.data + ".vocab.pt",
+           tgt_vocab = train_data.fields['tgt'].vocab, #opt.data + ".vocab.pt",
+           src_vocab = train_data.fields['src'].vocab, #opt.data + ".vocab.pt",
            augmenting_data_names = train_data.data_names, 
-           #mix_factor = train_data.mix_fac if opt.train_with_aug == 1 else 0.0, 
            mix_factor = opt.mix_factor if opt.train_with_aug == 1 else 0.0,
            mix_factor_decay = opt.mix_factor_decay,
            num_aug_instances = train_data.num_aug_instances,
@@ -142,7 +143,9 @@ def make_hybrid_valid_data_iter(train_data, opt):
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.valid", 
            augmenting_file = None, 
-           vocab_file = opt.data + ".vocab.pt",
+           tgt_vocab = train_data.fields['tgt'].vocab, #opt.data + ".vocab.pt",
+           src_vocab = train_data.fields['src'].vocab, #opt.data + ".vocab.pt",
+           vocab_obj = train_data.vocab_obj, #opt.data + ".vocab.pt",
            augmenting_data_names = train_data.data_names, 
            mix_factor = 0.0,
            mix_factor_decay = 0.0,

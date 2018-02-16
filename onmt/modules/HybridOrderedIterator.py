@@ -11,14 +11,14 @@ import numpy as np
 
 ExInstance = namedtuple('ExInstance', 'audio_src aug_src flags src_length tgt_length tgt')
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, vocab_file,  augmenting_data_names, mix_factor, mix_factor_decay,
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab,  augmenting_data_names, mix_factor, mix_factor_decay,
             num_aug_instances, num_audio_instances, embedding_size, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
       self.num_audio_instances =  num_audio_instances
       self.audio_src_reader_file = audio_file + '.src'
       self.audio_tgt_reader_file = audio_file + '.tgt'
-      self.tgt_vocab = torch.load(vocab_file)[1][1]
+      self.tgt_vocab = tgt_vocab #torch.load(vocab_file)[1][1]
       self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.flags_size = len(augmenting_data_names) + 1
       self.mix_factor = mix_factor
@@ -26,7 +26,7 @@ class HybridOrderedIterator:
       self.device = device
       self.use_aug = self.train_mode and (self.mix_factor > 0.0) and (augmenting_file is not None)
       if self.use_aug:
-          self.aug_src_vocab = torch.load(vocab_file)[0][1] 
+          self.aug_src_vocab = src_vocab #torch.load(vocab_file)[0][1] 
           self.aug_src_reader_file = augmenting_file + '.src'
           self.aug_tgt_reader_file = augmenting_file + '.tgt'
           self.num_aug_instances = num_aug_instances
@@ -148,6 +148,8 @@ class HybridOrderedIterator:
                 audio_pair = self.get_next_audio_pair() 
                 yield tmp
             elif aug_pair[1] != None:
+                if not self.train_mode:
+                    raise BaseException("aug data should not be called in validation and test mode")
                 #print('aug', self.train_mode, self.epoch_counter)
                 tmp = self._make_tensors(aug_pair, False)
                 aug_pair = self.get_next_aug_pair()

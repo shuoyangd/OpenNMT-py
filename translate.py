@@ -61,19 +61,23 @@ def main():
         translator.initBeamAccum()
     opt.tgt = None
     data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translator.fields, None)
+    pdb.set_trace()
     num_audio_instances = 0
     for line in open(opt.src):
         num_audio_instances += 1
-
     if isinstance(translator.model.encoder, HybridEncoder) or \
             isinstance(translator.model.encoder, HybridDualEncoder):
+        data_names = [ str(i) for i in range(translator.model.encoder.num_concat_flags - 1) ]  # pseudo augmenting data names
         test_data = onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
            audio_file = ".".join(opt.src.split(".")[:-1]),  # get rid of the .src suffix
            augmenting_file = None, 
-           vocab_file = opt.vocab,
-           augmenting_data_names = [ str(i) for i in range(translator.model.encoder.num_concat_flags - 1) ],  # pseudo augmenting data names
+           #vocab_file = opt.vocab,
+           #vocab_obj = data.src_vocabs[0],
+           tgt_vocab = translator.fields['tgt'].vocab,
+           src_vocab = translator.fields['src'].vocab,
+           augmenting_data_names = data_names,
            mix_factor = 0.0,
            mix_factor_decay = 0.0,
            num_aug_instances = 0,
