@@ -104,12 +104,13 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
       self.add_noise = add_noise
+      self.do_subsample = do_subsample
       self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
       rnn_list = []
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
@@ -183,7 +184,7 @@ class HybridEncoder(RNNEncoder):
         for idx, rnn in enumerate(self.rnn_list):
             outputs, (h_t, c_t) = rnn(outputs, hidden)
             hidden_t.append((h_t, c_t))
-            if idx < 2:
+            if idx < 2 and self.do_subsample == 1:
                 outputs, lengths = self.subsample(outputs, lengths)
             else:
                 pass # do not sample further
@@ -210,13 +211,14 @@ class HybridEncoder(RNNEncoder):
 
 class HybridDualEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample):
       super(HybridDualEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
       self.add_noise = add_noise
       self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
+      self.do_subsample = do_subsample
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
 
       num_directions = 2 if bidirectional else 1
@@ -318,7 +320,7 @@ class HybridDualEncoder(RNNEncoder):
         for idx, rnn in enumerate(self.audio_rnn_list):
             audio_outputs, (h_t, c_t) = rnn(audio_outputs, hidden)
             audio_hidden_t.append((h_t, c_t))
-            if idx < 2:
+            if idx < 2 and self.do_subsample == 1:
                 audio_outputs, audio_lengths = self.subsample(audio_outputs, audio_lengths)
             else:
                 pass # do not sample further

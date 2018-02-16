@@ -104,7 +104,6 @@ def make_hybrid_train_data_iter(train_data, opt, valid_data):
     assert hasattr(train_data, 'num_audio_instances')
     assert hasattr(train_data, 'data_names')
     assert opt.mix_factor < 1.0
-    assert opt.mix_factor_decay <= 1.0
     return onmt.modules.HybridOrderedIterator(
            train_mode = True, 
            batch_size = opt.batch_size, 
@@ -113,8 +112,8 @@ def make_hybrid_train_data_iter(train_data, opt, valid_data):
            tgt_vocab = train_data.fields['tgt'].vocab, #opt.data + ".vocab.pt",
            src_vocab = train_data.fields['src'].vocab, #opt.data + ".vocab.pt",
            augmenting_data_names = train_data.data_names, 
-           mix_factor = opt.mix_factor if opt.train_with_aug == 1 else 0.0,
-           mix_factor_decay = opt.mix_factor_decay,
+           init_mix_factor = opt.mix_factor if opt.train_with_aug == 1 else 0.0,
+           end_mix_factor = opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
            num_aug_instances = train_data.num_aug_instances,
            num_audio_instances = train_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
@@ -146,8 +145,8 @@ def make_hybrid_valid_data_iter(train_data, opt, valid_data):
            tgt_vocab = train_data.fields['tgt'].vocab, #TODO: does valid_data and train_data have the same vocab????
            src_vocab = train_data.fields['src'].vocab, 
            augmenting_data_names = valid_data.data_names, 
-           mix_factor = 0.0,
-           mix_factor_decay = 0.0,
+           init_mix_factor = 0.0, #opt.mix_factor if opt.train_with_aug == 1 else 0.0,
+           end_mix_factor = 0.0, #opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
            num_aug_instances = valid_data.num_aug_instances,
            num_audio_instances = valid_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,

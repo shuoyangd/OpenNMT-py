@@ -106,10 +106,12 @@ def model_opts(parser):
                         help='add noise to the augmented token embeddings')
     parser.add_argument('-use_highway_concat', type=int, default=0, choices=set((0, 1)),
                         help='use highway concatenation')
+    parser.add_argument('-do_subsample', type=int, default=0, choices=set((0, 1)),
+                        help='subsample between encoder layers')
     parser.add_argument('-mix_factor', type=float, default=0.8,
                         help='mix factor training instance will be asr is rand > mix factor')
-    parser.add_argument('-mix_factor_decay', type=float, default=0.9,
-                        help='decay for mix factor')
+    parser.add_argument('-end_mix_factor', type=float, default=0.2,
+                        help='')
 
 def preprocess_opts(parser):
     # Dictionary Options
