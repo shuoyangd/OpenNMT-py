@@ -23,7 +23,7 @@ AUG_TYPE=$9
 export PYTHONPATH=$PYTHONPATH:$OPENMNTPATH/onmt/modules
 
 #PROJECT_DIR=/export/b07/arenduc1/e2e-speech
-MODEL_DIR=$PROJECT_DIR/models/${DATA_TYPE}.${AUG_TYPE}
+MODEL_DIR=$PROJECT_DIR/models/${DATA_TYPE}/${AUG_TYPE}
 mkdir -p $MODEL_DIR
-
+NAME=model.cpu.data.$DATA_TYPE.hdim.$RNN_SIZE.dl.$DEC_LAYERS.aug.$TRAIN_WITH_AUG.$AUG_TYPE.cf.$NUM_CONCAT_FLAGS.n.$ADD_NOISE.hc.$HIGHWAY_CONCAT
 python $OPENMNTPATH/train.py -data $PROJECT_DIR/data/${DATA_TYPE}/${AUG_TYPE}/${DATA_TYPE} -save_model $MODEL_DIR/${NAME} -encoder_type hybrid -rnn_size $RNN_SIZE -word_vec_size 123 -batch_size 8  -optim adadelta -dropout 0.1 -enc_layers 4 -dec_layers $DEC_LAYERS -learning_rate_decay 0.99 -epochs 5 -train_with_aug $TRAIN_WITH_AUG -num_concat_flags $NUM_CONCAT_FLAGS -add_noise $ADD_NOISE -use_highway_concat $HIGHWAY_CONCAT -mix_factor $MIX_FACTOR  -mix_factor_decay 0.95

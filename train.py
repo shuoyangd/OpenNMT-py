@@ -99,7 +99,7 @@ def make_train_data_iter(train_data, opt):
                 repeat=False)
 
 
-def make_hybrid_train_data_iter(train_data, opt):
+def make_hybrid_train_data_iter(train_data, opt, valid_data):
     assert hasattr(train_data, 'num_aug_instances')
     assert hasattr(train_data, 'num_audio_instances')
     assert hasattr(train_data, 'data_names')
@@ -134,23 +134,22 @@ def make_valid_data_iter(valid_data, opt):
                 train=False, sort=True)
 
 
-def make_hybrid_valid_data_iter(train_data, opt):
-    assert hasattr(train_data, 'num_aug_instances')
-    assert hasattr(train_data, 'num_audio_instances')
-    assert hasattr(train_data, 'data_names')
+def make_hybrid_valid_data_iter(train_data, opt, valid_data):
+    assert hasattr(valid_data, 'num_aug_instances')
+    assert hasattr(valid_data, 'num_audio_instances')
+    assert hasattr(valid_data, 'data_names')
     return onmt.modules.HybridOrderedIterator(
            train_mode = False, 
            batch_size = opt.batch_size, 
            audio_file = opt.data + ".audio.valid", 
            augmenting_file = None, 
-           tgt_vocab = train_data.fields['tgt'].vocab, #opt.data + ".vocab.pt",
-           src_vocab = train_data.fields['src'].vocab, #opt.data + ".vocab.pt",
-           vocab_obj = train_data.vocab_obj, #opt.data + ".vocab.pt",
-           augmenting_data_names = train_data.data_names, 
+           tgt_vocab = train_data.fields['tgt'].vocab, #TODO: does valid_data and train_data have the same vocab????
+           src_vocab = train_data.fields['src'].vocab, 
+           augmenting_data_names = valid_data.data_names, 
            mix_factor = 0.0,
            mix_factor_decay = 0.0,
-           num_aug_instances = train_data.num_aug_instances,
-           num_audio_instances = train_data.num_audio_instances,
+           num_aug_instances = valid_data.num_aug_instances,
+           num_audio_instances = valid_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
@@ -180,8 +179,8 @@ def train_model(model, train_data, valid_data, fields, optim):
       assert opt.num_concat_flags == (1+len(train_data.data_names)) or opt.num_concat_flags == 0, 'num_concat_flags should be \
       either 0 or equal to the size of the flag vector'
       assert len(train_data.data_names) == len(valid_data.data_names)
-      train_iter = make_hybrid_train_data_iter(train_data, opt)
-      valid_iter = make_hybrid_valid_data_iter(valid_data, opt)
+      train_iter = make_hybrid_train_data_iter(train_data, opt, valid_data)
+      valid_iter = make_hybrid_valid_data_iter(train_data, opt, valid_data)
     else:
       train_iter = make_train_data_iter(train_data, opt)
       valid_iter = make_valid_data_iter(valid_data, opt)
