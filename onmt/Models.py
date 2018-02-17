@@ -5,7 +5,6 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import pad_packed_sequence as unpack
 from torch.nn.utils import weight_norm
-
 import onmt
 from onmt.Utils import aeq
 
@@ -104,7 +103,9 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample, do_weight_norm):
+                 hidden_size, dropout, embeddings, 
+                 num_concat_flags, add_noise, highway_concat, 
+                 do_subsample, do_weight_norm, use_gpu):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
@@ -125,8 +126,10 @@ class HybridEncoder(RNNEncoder):
                     hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
-                    bidirectional=bidirectional)
+                    bidirectional=bidirectional) #.cuda()
           if self.do_weight_norm == 1:
+              if len(use_gpu) > 0:
+                  rnn = rnn.cuda()
               rnn = weight_norm(rnn, name='weight_ih_l0')
               rnn = weight_norm(rnn, name='weight_hh_l0')
           rnn_list.append(rnn)
@@ -215,7 +218,9 @@ class HybridEncoder(RNNEncoder):
 
 class HybridDualEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample, do_weight_norm):
+                 hidden_size, dropout, embeddings, 
+                 num_concat_flags, add_noise, highway_concat, 
+                 do_subsample, do_weight_norm, use_gpu):
       super(HybridDualEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
@@ -240,6 +245,8 @@ class HybridDualEncoder(RNNEncoder):
                     dropout=dropout,
                     bidirectional=bidirectional)
           if self.do_weight_norm == 1:
+              if len(use_gpu) > 0:
+                  rnn = rnn.cuda()
               rnn = weight_norm(rnn, name='weight_ih_l0')
               rnn = weight_norm(rnn, name='weight_hh_l0')
           audio_rnn_list.append(rnn)
