@@ -107,7 +107,7 @@ def model_opts(parser):
     parser.add_argument('-use_highway_concat', type=int, default=0, choices=set((0, 1)),
                         help='use highway concatenation')
 
-    parser.add_argument('-do_weight_norm', type=int, default=0, choices=set((0, 1)),
+    parser.add_argument('-do_weight_norm', type=int, default=0, choices=set([0]), # do not allow weight norm for now
                         help='apply weight norm paramerterization to RNN')
     parser.add_argument('-do_subsample', type=int, default=0, choices=set((0, 1)),
                         help='subsample between encoder layers')

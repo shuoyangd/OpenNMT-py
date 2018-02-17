@@ -18,7 +18,7 @@ if __name__ == '__main__':
         p = p.replace('@@ ', '')
         r = r.replace('@@ ', '')
         p = p.strip().split()
-        r = r.strip().split()
+        r = r.strip().split()[1:] #FIRST TOK is the Utterence ID
         e = editdistance.eval(p, r)
         wer = float(e) /float(len(r))
         wer_per_line.append(wer)

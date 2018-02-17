@@ -74,11 +74,12 @@ def main():
            tgt_vocab = translator.fields['tgt'].vocab,
            src_vocab = translator.fields['src'].vocab,
            augmenting_data_names = data_names,
-           mix_factor = 0.0,
-           mix_factor_decay = 0.0,
-           num_aug_instances = 0,
+           init_mix_factor = 0.0, #opt.mix_factor if opt.train_with_aug == 1 else 0.0,
+           end_mix_factor = 0.0, #opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
+           num_aug_instances = 0, 
            num_audio_instances = num_audio_instances,
            embedding_size = translator.model.encoder.embeddings.embedding_size,
+           num_epochs = 1, 
            device = opt.gpu if opt.gpu else -1)
     else:
         test_data = onmt.IO.OrderedIterator(
