@@ -4,9 +4,9 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import pad_packed_sequence as unpack
+from torch.nn.utils import weight_norm
 
 import onmt
-import pdb
 from onmt.Utils import aeq
 
 
@@ -104,13 +104,14 @@ class RNNEncoder(EncoderBase):
 
 class HybridEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample, do_weight_norm):
       super(HybridEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
       self.add_noise = add_noise
       self.do_subsample = do_subsample
+      self.do_weight_norm = do_weight_norm
       self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
       rnn_list = []
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
@@ -125,6 +126,9 @@ class HybridEncoder(RNNEncoder):
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
+          if self.do_weight_norm == 1:
+              rnn = weight_norm(rnn, name='weight_ih_l0')
+              rnn = weight_norm(rnn, name='weight_hh_l0')
           rnn_list.append(rnn)
       self.rnn_list = nn.ModuleList(rnn_list)
 
@@ -211,7 +215,7 @@ class HybridEncoder(RNNEncoder):
 
 class HybridDualEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample):
+                 hidden_size, dropout, embeddings, num_concat_flags, add_noise, highway_concat, do_subsample, do_weight_norm):
       super(HybridDualEncoder, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
@@ -219,6 +223,7 @@ class HybridDualEncoder(RNNEncoder):
       self.add_noise = add_noise
       self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
       self.do_subsample = do_subsample
+      self.do_weight_norm = do_weight_norm
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
 
       num_directions = 2 if bidirectional else 1
@@ -234,6 +239,9 @@ class HybridDualEncoder(RNNEncoder):
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
+          if self.do_weight_norm == 1:
+              rnn = weight_norm(rnn, name='weight_ih_l0')
+              rnn = weight_norm(rnn, name='weight_hh_l0')
           audio_rnn_list.append(rnn)
       self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
 
@@ -345,8 +353,10 @@ class HybridDualEncoder(RNNEncoder):
         seq_pad = Variable(torch.zeros(size_diff, audio_outputs.size(1), audio_outputs.size(2)), requires_grad=False).type_as(audio_outputs)
         if audio_outputs.size(0) < aug_outputs.size(0):
           audio_outputs = torch.cat([audio_outputs, seq_pad], dim=0)
-        else:
+        elif aug_outputs.size(0) < audio_outputs.size(0):
           aug_outputs = torch.cat([aug_outputs, seq_pad], dim=0)
+        else:
+          pass
         outputs = (audio_outputs * iflag) + (aug_outputs * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
 
         if self.num_concat_flags > 0 and self.highway_concat > 0:

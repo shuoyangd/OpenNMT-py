@@ -117,6 +117,7 @@ def make_hybrid_train_data_iter(train_data, opt, valid_data):
            num_aug_instances = train_data.num_aug_instances,
            num_audio_instances = train_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
+           num_epochs = opt.epochs,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
 
@@ -150,6 +151,7 @@ def make_hybrid_valid_data_iter(train_data, opt, valid_data):
            num_aug_instances = valid_data.num_aug_instances,
            num_audio_instances = valid_data.num_audio_instances,
            embedding_size = opt.src_word_vec_size,
+           num_epochs = opt.epochs,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
 def make_loss_compute(model, tgt_vocab, dataset, opt):
