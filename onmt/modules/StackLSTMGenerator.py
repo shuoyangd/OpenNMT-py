@@ -46,9 +46,9 @@ num_lstm_layers: number of lstm layers for the StackLSTM
 gpuid: 
 
 """
-class StackLSTMGenerator(LossComputeBase):
+class StackLSTMGenerator(nn.Module):
 
-  def __init__(self, vocab, word_emb, actions, options, pre_vocab=None, postags=None):
+  def __init__(self, word_emb, actions, options, pre_vocab=None, postags=None):
     """
     :param vocab: vocabulary, with type torchtext.vocab.Vocab
     :param actions: a python list of actions, denoted as "transition" (unlabled) or "transition|label" (labeled).
@@ -70,7 +70,6 @@ class StackLSTMGenerator(LossComputeBase):
     self.long_dtype = torch.cuda.LongTensor if len(options.gpuid) >= 1 else torch.LongTensor
 
     # vocabularies
-    self.vocab = vocab
     self.pre_vocab = pre_vocab
     self.actions = actions
     self.postags = postags
@@ -117,7 +116,7 @@ class StackLSTMGenerator(LossComputeBase):
     self.c0 = nn.Parameter(torch.rand(options.stack_hid_dim,).type(self.dtype))
     # FIXME: there is no dropout in StackLSTMCell at this moment
     # BufferLSTM could have 0 or 2 parameters, depending on what is passed for initial hidden and cell state
-    self.stack = StackLSTMCell(options.stack_input_dim, options.stack_hid_dim, options.dropout_rate, options.stack_size, options.stack_lstm_layers, self.h0, self.c0)
+    self.stack = StackLSTMCell(options.stack_input_dim, options.stack_hid_dim, 0.0, options.stack_size, options.stack_lstm_layers, self.h0, self.c0)
     self.buffer = LSTMStateBufferCell(options.stack_hid_dim, self.h0, self.c0)
     self.token_buffer = LSTMStateBufferCell(options.stack_input_dim) # elememtns in this buffer has size input_dim so h0 and c0 won't fit
     self.history = nn.LSTMCell(input_size=options.action_emb_dim, hidden_size=options.stack_hid_dim) # FIXME: dropout needs to be implemented manually

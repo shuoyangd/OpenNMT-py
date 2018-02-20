@@ -356,7 +356,7 @@ class ONMTDataset(torchtext.data.Dataset):
         return fields
 
     @staticmethod
-    def build_vocab(train, aux_train, opt):
+    def build_vocab(train, opt):
         fields = train.fields
         fields["src"].build_vocab(train, max_size=opt.src_vocab_size,
                                   min_freq=opt.src_words_min_frequency)
@@ -365,9 +365,8 @@ class ONMTDataset(torchtext.data.Dataset):
         fields["tgt"].build_vocab(train, max_size=opt.tgt_vocab_size,
                                   min_freq=opt.tgt_words_min_frequency)
 
-        if aux_train is not None:
-            fields["aux_tgt"].build_vocab(aux_train, max_size=opt.tgt_vocab_size,
-                                          min_freq=opt.tgt_words_min_frequency)
+        if "aux_tgt" in fields:
+            fields["aux_tgt"].build_vocab(train)
 
         # Merge the input and output vocabularies.
         if opt.share_vocab:

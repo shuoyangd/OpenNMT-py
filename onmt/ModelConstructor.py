@@ -13,7 +13,7 @@ from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder, StackLSTMGenerator
-
+from onmt.modules.StackLSTMGenerator import StackLSTMGenerator
 
 def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
     """
@@ -182,7 +182,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     model.generator = generator
 
     if model_opt.rnng:
-        model.rnng_generator = StackLSTMGenerator(fields["tgt"].vocab, decoder.embeddings.word_lut, fields["parse"].vocab, model_opt)
+        model.rnng_generator = StackLSTMGenerator(decoder.embeddings.word_lut.weight, fields["aux_tgt"].vocab.itos, model_opt)
 
     # Make the whole model leverage GPU if indicated to do so.
     if gpu:

@@ -11,8 +11,8 @@ import onmt
 import onmt.Models
 import onmt.ModelConstructor
 import onmt.modules
-from nmt.onmt.Utils import aeq, use_gpu
-from . import opts
+from onmt.Utils import aeq, use_gpu
+import opts
 
 parser = argparse.ArgumentParser(description='train.py')
 
@@ -49,6 +49,8 @@ if len(opt.gpuid) > 1:
     sys.stderr.write("Sorry, multigpu isn't supported yet, coming soon!\n")
     sys.exit(1)
 
+# occupy the device
+occupy = torch.FloatTensor(1).cuda()
 
 # Set up the Crayon logging server.
 if opt.exp_host != "":
