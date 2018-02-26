@@ -142,8 +142,13 @@ class HybridEncoder(RNNEncoder):
         # print(input_flag.size())
         # print(input_audio.size())
         # assert input_flag.size() == (self.num_concat_flags, batch) 
+        if lengths is not None:
+            assert s_len == lengths[0]
+            #print(s_len, 'sent len')
+            #print(batch, 'batch len')
         assert input_aug.size() == (s_len, batch, 1)
         assert input_audio.size() == (s_len, batch, emb_dim)
+
 
     def subsample(self, outputs, lengths):
         if lengths is not None and not self.no_pack_padded_seq:
@@ -155,9 +160,9 @@ class HybridEncoder(RNNEncoder):
 
     def forward(self, input, lengths=None, hidden=None):
         """ See EncoderBase.forward() for description of args and returns."""
-        # TODO
         self._check_args(input, lengths, hidden)
         input_audio, input_aug, input_flag = input 
+        s_len, batch, emb_dim = input_audio.size()
 
         input_aug_emb = self.embeddings(input_aug) #TODO: add noise
         if self.add_noise == 1:
@@ -169,13 +174,17 @@ class HybridEncoder(RNNEncoder):
         iflag = input_flag[0,:].unsqueeze(0).unsqueeze(2).float()
 
         final_input = (input_audio * iflag) + (input_aug_emb * (1 - iflag)) #TODO:(seq_len, batch, features) ==> (seq_len, batch, features+ |flags|)
+        #del input_audio 
+        #del input_aug
+        #del input_aug_emb
 
         if self.num_concat_flags > 0:
             assert input_flag.size(0) == self.num_concat_flags
             concat_flag = input_flag.transpose(0,1) #(b,f)
             concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
-            concat_flag = concat_flag.expand(input_audio.size(0), concat_flag.size(1), concat_flag.size(2))
+            concat_flag = concat_flag.expand(s_len, concat_flag.size(1), concat_flag.size(2))
             final_input = torch.cat([final_input, concat_flag.float()], dim=2)
+            #del concat_flag
         else:
             pass
 
@@ -207,6 +216,7 @@ class HybridEncoder(RNNEncoder):
             concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
             concat_flag = concat_flag.expand(outputs.size(0), concat_flag.size(1), concat_flag.size(2))
             outputs = torch.cat([outputs, concat_flag.float()], dim=2)  # (seq_len, batch_size, hidden_size)
+            # del concat_flag
         else:
             pass       
 
@@ -271,6 +281,10 @@ class HybridDualEncoder(RNNEncoder):
         # print(input_flag.size())
         # print(input_audio.size())
         # assert input_flag.size() == (self.num_concat_flags, batch) 
+        if lengths is not None:
+            assert s_len == lengths[0]
+            #print(s_len, 'sent len')
+            #print(batch, 'batch len')
         assert input_aug.size() == (s_len, batch, 1)
         assert input_audio.size() == (s_len, batch, emb_dim)
 
@@ -287,7 +301,6 @@ class HybridDualEncoder(RNNEncoder):
         # TODO
         self._check_args(input, lengths, hidden)
         input_audio, input_aug, input_flag = input 
-
         input_aug_emb = self.embeddings(input_aug) #TODO: add noise
         if self.add_noise == 1:
             n = torch.rand(1, input_aug_emb.size(1), input_aug_emb.size(2)).type_as(input_audio.data)
@@ -333,6 +346,7 @@ class HybridDualEncoder(RNNEncoder):
         audio_hidden_t = []
         audio_lengths = lengths
         for idx, rnn in enumerate(self.audio_rnn_list):
+            print('audio rnns', idx)
             audio_outputs, (h_t, c_t) = rnn(audio_outputs, hidden)
             audio_hidden_t.append((h_t, c_t))
             if idx < 2 and self.do_subsample == 1:
@@ -347,6 +361,7 @@ class HybridDualEncoder(RNNEncoder):
         aug_hidden_t = []
         aug_lengths = lengths
         for idx, rnn in enumerate(self.aug_rnn_list):
+            print('aug rnns', idx)
             aug_outputs, (h_t, c_t) = rnn(aug_outputs, hidden)
             aug_hidden_t.append((h_t, c_t))
 

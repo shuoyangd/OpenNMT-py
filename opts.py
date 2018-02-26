@@ -268,6 +268,20 @@ def translate_opts(parser):
                         help='Batch size')
     parser.add_argument('-max_sent_length', type=int, default=100,
                         help='Maximum sentence length.')
+    
+    parser.add_argument('-max_length_ratio', type=float, default = 0.8,
+                        help='limit decoder max length based on src length * max_length_ratio')
+
+    parser.add_argument('-min_length_ratio', type=float, default = 0.3, 
+                        help='limit decoder min length based on src length * min_length_ratio')
+
+    parser.add_argument('-length_penalty', type=float, default = 0.0,
+                        help='coeffient for length penalty')
+    parser.add_argument('-length_prior_factor', type=float, default = 0.0,
+                        help='coeffient for length prior penalty')
+    parser.add_argument('-length_prior_file', type=str, default = None,
+                        help='pkl with mean and cov for src and target length priors')
+
     parser.add_argument('-replace_unk', action="store_true",
                         help="""Replace the generated UNK tokens with the
                         source token that had highest attention weight. If

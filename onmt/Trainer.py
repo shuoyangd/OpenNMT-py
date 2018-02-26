@@ -14,7 +14,6 @@ import sys
 import math
 import torch
 import torch.nn as nn
-
 import onmt
 import onmt.modules
 
@@ -31,6 +30,8 @@ class Statistics(object):
         self.start_time = time.time()
 
     def update(self, stat):
+        #print('stat.loss', stat.loss, type(stat.loss))
+        assert isinstance(stat.loss, float)
         self.loss += stat.loss
         self.n_words += stat.n_words
         self.n_correct += stat.n_correct
@@ -146,6 +147,15 @@ class Trainer(object):
                 report_stats = report_func(
                         epoch, i, len(self.train_iter),
                         total_stats.start_time, self.optim.lr, report_stats)
+            del outputs, attns, dec_state
+            del src, tgt, src_lengths 
+            #print('del')
+            #d = torch.cuda.current_device()
+            #print('device:', torch.cuda.get_device_name(d))
+            #print('capability', torch.cuda.get_device_capability(d))
+            #print('allocated', torch.cuda.memory_allocated(d))
+            #print('max allocated', torch.cuda.max_memory_allocated(d))
+            #print('max cached', torch.cuda.max_memory_cachedd(d))
 
         return total_stats
 

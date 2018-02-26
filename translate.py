@@ -17,7 +17,6 @@ except ImportError:
 
 from onmt.Models import HybridEncoder, HybridDualEncoder
 import onmt.modules.HybridOrderedIterator
-
 parser = argparse.ArgumentParser(description='translate.py')
 opts.add_md_help_argument(parser)
 opts.translate_opts(parser)
@@ -47,7 +46,7 @@ def main():
     dummy_parser = argparse.ArgumentParser(description='train.py')
     opts.model_opts(dummy_parser)
     dummy_opt = dummy_parser.parse_known_args([])[0]
-
+    
     opt.cuda = opt.gpu > -1
     if opt.cuda:
         torch.cuda.set_device(opt.gpu)

@@ -8,8 +8,8 @@ from __future__ import division
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-
 import onmt
+import pdb
 
 
 class LossComputeBase(nn.Module):
@@ -149,12 +149,11 @@ class ASRLossCompute(LossComputeBase):
         batch_stats = onmt.Statistics()
         range_ = (cur_trunc, cur_trunc + trunc_size)
         shard_state = self.make_shard_state(batch, output, range_, attns)
-
         for shard in shards(shard_state, shard_size):
             loss, stats = self.compute_loss(batch, **shard)
             loss.div(batch[0].size(1)).backward()
             batch_stats.update(stats)
-
+            #del loss
         return batch_stats
 
 

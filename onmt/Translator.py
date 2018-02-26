@@ -1,13 +1,12 @@
 import torch
 from torch.autograd import Variable
-
 import onmt
 import onmt.Models
 import onmt.ModelConstructor
 import onmt.modules
 import onmt.IO
 from onmt.Utils import use_gpu
-import pdb
+import pickle as pkl
 
 class Translator(object):
     def __init__(self, opt, dummy_opt={}):
@@ -29,6 +28,15 @@ class Translator(object):
                             model_opt, self.fields, use_gpu(opt), checkpoint)
         self.model.eval()
         self.model.generator.eval()
+
+        #for length penalty
+        f = open(opt.length_prior_file,'rb')
+        f = pkl._Unpickler(f)
+        f.encoding = 'latin1'
+        self.length_prior = f.load()
+        assert isinstance(self.length_prior, tuple)
+        self.length_prior_factor = opt.length_prior_factor
+        self.length_penalty = opt.length_penalty
 
         # for debugging
         self.beam_accum = None
@@ -143,11 +151,26 @@ class Translator(object):
         decStates.repeat_beam_size_times(beam_size)
         scorer = None
         # scorer=onmt.GNMTGlobalScorer(0.3, 0.4)
-        beam = [onmt.Beam(beam_size, n_best=self.opt.n_best,
+
+        #min and max lengths
+        assert len(src_lengths) == 1
+        max_decode_length = int(self.opt.max_length_ratio * src_lengths[0])
+        min_decode_length = int(self.opt.min_length_ratio * src_lengths[0])
+        print('audio len:' + str(src_lengths[0]) + 'min length limit:' + str(min_decode_length) + ' max length limit:' + str(max_decode_length))
+
+        beam = [onmt.Beam(beam_size, 
+                          pad = self.fields['tgt'].vocab.stoi[onmt.IO.PAD_WORD],
+                          bos = self.fields["tgt"].vocab.stoi[onmt.IO.BOS_WORD],
+                          eos = self.fields["tgt"].vocab.stoi[onmt.IO.EOS_WORD],
+                          src_length = src_lengths[0],
+                          n_best=self.opt.n_best,
                           cuda=self.opt.cuda,
-                          vocab=self.fields["tgt"].vocab,
-                          global_scorer=scorer)
-                for __ in range(batch_size)]
+                          global_scorer=scorer, 
+                          min_length= min_decode_length,
+                          length_prior = self.length_prior,
+                          length_prior_factor = self.length_prior_factor,
+                          length_penalty = self.length_penalty)
+                for __ in range(batch_size)] # for each instance in a batch create a beam of width=beam_size
 
         # (2) run the decoder to generate sentences, using beam search.
 
@@ -156,9 +179,9 @@ class Translator(object):
 
         def unbottle(m):
             return m.view(beam_size, batch_size, -1)
-
-        for i in range(self.opt.max_sent_length):
-
+        
+        for i in range(max_decode_length):
+        #for i in range(self.opt.max_sent_length):
             if all((b.done() for b in beam)):
                 break
 
@@ -223,15 +246,15 @@ class Translator(object):
             allHyps.append(hyps)
             allScores.append(scores)
             allAttn.append(attn)
-
         return allHyps, allScores, allAttn, allGold
 
     def translate(self, batch, data):
         #  (1) convert words to indexes
         if not isinstance(batch, tuple):
-            batch_size = batch.batch_size
+            batch_size = batch.batch_size # normal way
         else:
             batch_size = batch[0].size(1)
+            assert batch_size == 1
 
         #  (2) translate
         pred, predScore, attn, goldScore = self.translateBatch(batch, data)

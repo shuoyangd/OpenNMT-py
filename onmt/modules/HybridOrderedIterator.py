@@ -64,9 +64,9 @@ class HybridOrderedIterator:
            print('creating batch epoch:%d mix_factor:%.4f' %(self.epoch_counter, self.mix_factor))
            if self.use_aug:
                self.init_aug_reader()
-           self.batches = self.pool(self.data())
+           self.batches = self.pool(self.data(), do_shuffle = False, bucket_factor = 50)
        else:
-           self.batches = self.pool(self.data(), False, 1)
+           self.batches = self.pool(self.data(), do_shuffle = False, bucket_factor = 1) #buckect_factor =1 ensures order of batches is unchanged.
 
     def __len__(self):
       s = self.num_audio_instances + self.num_aug_instances
@@ -87,6 +87,7 @@ class HybridOrderedIterator:
             if src_ok and tgt_ok:
                 return aug_src_line, aug_tgt_line
             else:
+                print('end of aug reader...', self.train_mode)
                 self.init_aug_reader() #re initialize and loop back
                 aug_src_line = self.aug_src_reader.readline()
                 aug_tgt_line = self.aug_tgt_reader.readline()
@@ -101,7 +102,7 @@ class HybridOrderedIterator:
             audio_src = self.audio_src_reader[idx]
             return audio_src, audio_tgt 
         else:
-            print('end of audio reader...')
+            print('end of audio reader...', self.train_mode)
             return None, None
 
     def is_end(self, audio_pair): #, aug_pair):
@@ -161,7 +162,9 @@ class HybridOrderedIterator:
                 #print('reached end of data') 
                 pass
 
-    def batch(self, data, batch_size, pad):
+    def batch(self, data, batch_size, pad, adapt_batch_size):
+        max_length_in = 450  #tuned by hand for batch size of 64
+        max_length_out = 80  #tuned by hand for batch size of 64 
         minibatch = []
         max_len = [0, 0]
         for ex in data:
@@ -169,8 +172,14 @@ class HybridOrderedIterator:
             max_len[0] = audio_src_.size(0) if audio_src_.size(0) > max_len[0] else max_len[0]
             max_len[0] = aug_src_.size(0) if aug_src_.size(0) > max_len[0] else max_len[0]
             max_len[1] = tgt_.size(0) if tgt_.size(0) > max_len[1] else max_len[1]
+            if adapt_batch_size:
+                factor = max(int(max_len[0] / max_length_in), int(max_len[1] / max_length_out))
+                #factor = factor ** 1.2
+                current_batch_limit = max(1, int(batch_size / (1 + factor)))
+            else:
+                current_batch_limit = batch_size
             minibatch.append(ex)
-            if len(minibatch) >= batch_size:
+            if len(minibatch) >= current_batch_limit:
                 merged_minibatch = []
                 for mini_ex in minibatch:
                     audio_src, aug_src, flag, sl, tl, tgt = mini_ex
@@ -185,6 +194,11 @@ class HybridOrderedIterator:
                     merged_minibatch.append(ex_instance_padded) 
                     #merged_minibatch.append((audio_src, aug_src, flag, sl, tl, tgt))
                 minibatch = []
+                #print('max_len', max_len, current_batch_limit)
+                if adapt_batch_size:
+                    #print('current_batch_limit', current_batch_limit, 'max_lens', max_len[0], max_len[1], 'factor', factor)
+                    pass
+                max_len = [0, 0]
                 yield merged_minibatch
 
         if len(minibatch) > 0:
@@ -202,17 +216,19 @@ class HybridOrderedIterator:
                 merged_minibatch.append(ex_instance_padded) 
                 #merged_minibatch.append((audio_src, aug_src, flag, sl, tl, tgt))
             minibatch = []
+            #print('final batch', len(merged_minibatch), 'max_lens', max_len[0], max_len[1])
+            max_len = [0, 0]
             yield merged_minibatch
 
-    def pool(self, data, do_shuffle=True, bucket_factor = 20): #TODO: bucket_factor should be small for toy data
+    def pool(self, data, do_shuffle=True, bucket_factor = 50): #TODO: bucket_factor should be small for toy data
         """Sort within buckets, then batch, then shuffle batches.
         Partitions data into chunks of size 100*batch_size, sorts examples within
         each chunk using sort_key, then batch these examples and shuffle the
         batches.
         """
         random_shuffler = random.shuffle
-        for idx_o, p in enumerate(self.batch(data, self.batch_size * bucket_factor, False)):
-            p_iter = self.batch(sorted(p, key=lambda x: -x.src_length), self.batch_size, True)
+        for idx_o, p in enumerate(self.batch(data, self.batch_size * bucket_factor, False, False)):
+            p_iter = self.batch(sorted(p, key=lambda x: -x.src_length), self.batch_size, True, True)
             #p_iter = self.batch(p, self.batch_size, True)
             # TODO: how to do random_shuffle
             # for b in random_shuffler(list(p_iter)):
