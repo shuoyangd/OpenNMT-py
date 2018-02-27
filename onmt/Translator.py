@@ -154,8 +154,8 @@ class Translator(object):
 
         #min and max lengths
         assert len(src_lengths) == 1
-        max_decode_length = int(self.opt.max_length_ratio * src_lengths[0])
-        min_decode_length = int(self.opt.min_length_ratio * src_lengths[0])
+        max_decode_length = int(self.opt.max_length_ratio * context.size(0))
+        min_decode_length = int(self.opt.min_length_ratio * context.size(0))
         print('audio len:' + str(src_lengths[0]) + 'min length limit:' + str(min_decode_length) + ' max length limit:' + str(max_decode_length))
 
         beam = [onmt.Beam(beam_size, 

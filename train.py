@@ -11,6 +11,7 @@ import onmt.ModelConstructor
 import onmt.modules
 from onmt.Utils import aeq, use_gpu
 import opts
+from onmt.modules.HybridOrderedIterator import ExInstance
 parser = argparse.ArgumentParser(description='train.py')
 
 # opts.py
@@ -182,6 +183,12 @@ def train_model(model, train_data, valid_data, fields, optim):
       assert len(train_data.data_names) == len(valid_data.data_names)
       train_iter = make_hybrid_train_data_iter(train_data, opt, valid_data)
       valid_iter = make_hybrid_valid_data_iter(train_data, opt, valid_data)
+      #for i,batch in enumerate(train_iter):
+      #    src = (batch[0], batch[1], batch[2])
+      #    src_lengths = batch[3]
+      #    print(i, src[0].size(0), src[0].size(1), batch[-1].size(0))
+      #pdb.set_trace()
+      #exit(1)
     else:
       train_iter = make_train_data_iter(train_data, opt)
       valid_iter = make_valid_data_iter(valid_data, opt)
