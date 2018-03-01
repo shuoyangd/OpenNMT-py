@@ -1,15 +1,12 @@
-#import sys
-#import codecs
-#import argparse
 import lazy_io
 import math
 import random
 import torch
 from torch.autograd import Variable
 from collections import namedtuple
-import numpy as np
+import pdb
 
-ExInstance = namedtuple('ExInstance', 'audio_src aug_src flags src_length tgt_length tgt')
+ExInstance = namedtuple('ExInstance', 'src is_audio flags src_length tgt_length tgt')
 class HybridOrderedIterator:
     def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab,  augmenting_data_names, init_mix_factor, end_mix_factor,
             num_aug_instances, num_audio_instances, embedding_size, num_epochs, device):
@@ -20,8 +17,8 @@ class HybridOrderedIterator:
       self.audio_src_reader_file = audio_file + '.src'
       self.audio_tgt_reader_file = audio_file + '.tgt'
       self.tgt_vocab = tgt_vocab #torch.load(vocab_file)[1][1]
-      self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
-      self.flags_size = len(augmenting_data_names) + 1
+      #self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
+      self.flags_size = 2 #len(augmenting_data_names) + 1
       self.mix_factor = init_mix_factor
       self.end_mix_factor = end_mix_factor
       self.mix_step = (self.mix_factor - self.end_mix_factor) / float(num_epochs)
@@ -58,15 +55,17 @@ class HybridOrderedIterator:
        self.init_audio_reader()
        if self.train_mode:
            self.epoch_counter += 1
-           #self.mix_factor *= self.mix_factor_decay
            self.mix_factor -= self.mix_step
            self.mix_factor = self.mix_factor if self.mix_factor > self.end_mix_factor else self.end_mix_factor
            print('creating batch epoch:%d mix_factor:%.4f' %(self.epoch_counter, self.mix_factor))
            if self.use_aug:
                self.init_aug_reader()
-           self.batches = self.pool(self.data(), do_shuffle = False, bucket_factor = 50)
+               mf = self.mix_factor
+           else:
+               mf = 0.0
+           self.batches = self.pool(self.audio_data(), self.augment_data(), mix_factor = mf, do_shuffle = True, bucket_factor = 50)
        else:
-           self.batches = self.pool(self.data(), do_shuffle = False, bucket_factor = 1) #buckect_factor =1 ensures order of batches is unchanged.
+           self.batches = self.pool(self.audio_data(), self.none_iter(), mix_factor = 0.0, do_shuffle = False, bucket_factor = 1) #buckect_factor =1 ensures order of batches is unchanged.
 
     def __len__(self):
       s = self.num_audio_instances + self.num_aug_instances
@@ -79,7 +78,6 @@ class HybridOrderedIterator:
 
     def get_next_aug_pair(self):
         if self.use_aug:
-            #print('next aug')
             aug_src_line = self.aug_src_reader.readline()
             aug_tgt_line = self.aug_tgt_reader.readline()
             src_ok = aug_src_line is not None and aug_src_line.strip() != ''
@@ -106,61 +104,51 @@ class HybridOrderedIterator:
             return None, None
 
     def is_end(self, audio_pair): #, aug_pair):
-        #is_done = [i[0] is not  None for i in pairs] #True if pair is not None
-        #return functools.reduce(lambda x,y: x or y, is_done) # True i)f any item in is_done is True
-        #is_aug_end = aug_pair[1] == None 
         is_audio_end = audio_pair[1] == None
-        return is_audio_end # and is_aug_end
+        return is_audio_end
 
     def _make_tensors(self, pair, is_audio):
         src, tgt = pair
         flags = torch.zeros(self.flags_size).byte()
         if is_audio: 
-            #assert isinstance(src, np.ndarray) #(seq_len, features)
-            #assert isinstance(tgt, str)
-            audio_src = torch.FloatTensor(src).unsqueeze(1) #(seq_len, 1, features)
-            aug_src = torch.zeros((1, 1)).long() #fake (1, 1)
+            src = torch.FloatTensor(src).unsqueeze(1) #(seq_len, 1, features)
             tgt = ["<s>"] + tgt.split() + ["</s>"]
             tgt = torch.LongTensor([self.tgt_vocab.stoi[tok] for tok in tgt]).unsqueeze(1) #(seq_len, 1)
             flags[0] = 1
             flags = flags.unsqueeze(1)
-            src_length = audio_src.size(0)
+            src_length = src.size(0)
         else:
-            #assert isinstance(src, str)
-            #assert isinstance(tgt, str)
-            audio_src = torch.zeros((1, 1, self.embedding_size)).float()  #fake (1, 1, features)
             src = ["<s>"] + src.split() + ["</s>"]
-            aug_src = torch.LongTensor([self.aug_src_vocab.stoi[tok] for tok in src]).unsqueeze(1)
+            src = torch.LongTensor([self.aug_src_vocab.stoi[tok] for tok in src]).unsqueeze(1).unsqueeze(2) #(seg_len, 1, 1)
             aug_name, tgt = tgt.strip().split(None, 1)
             tgt = ["<s>"] + tgt.split() + ["</s>"]
             tgt = torch.LongTensor([self.tgt_vocab.stoi[tok] for tok in tgt]).unsqueeze(1)
-            flags[self.aug_data_names[aug_name]] = 1
+            flags[1] = 1
             flags = flags.unsqueeze(1)
-            src_length = aug_src.size(0)
+            src_length = src.size(0)
         tgt_length = tgt.size(0)
-        ex_instance = ExInstance(audio_src, aug_src, flags, src_length, tgt_length, tgt)
-        return  ex_instance
+        ex_instance = ExInstance(src, is_audio, flags, src_length, tgt_length, tgt)
+        return ex_instance
 
-
-    def data(self):
-        audio_pair = self.get_next_audio_pair()
+    def augment_data(self,):
         aug_pair = self.get_next_aug_pair()
+        while aug_pair[1] is not None:
+            if not self.train_mode:
+                raise BaseException("aug data should not be called in validation and test mode")
+            tmp = self._make_tensors(aug_pair, False)
+            aug_pair = self.get_next_aug_pair()
+            yield tmp
+
+    def audio_data(self):
+        audio_pair = self.get_next_audio_pair()
         while not self.is_end(audio_pair): #, aug_pair):
-            if np.random.rand() > self.mix_factor: 
-                #print('audio', self.train_mode, self.epoch_counter)
-                tmp = self._make_tensors(audio_pair, True)
-                audio_pair = self.get_next_audio_pair() 
-                yield tmp
-            elif aug_pair[1] != None:
-                if not self.train_mode:
-                    raise BaseException("aug data should not be called in validation and test mode")
-                #print('aug', self.train_mode, self.epoch_counter)
-                tmp = self._make_tensors(aug_pair, False)
-                aug_pair = self.get_next_aug_pair()
-                yield tmp
-            else:
-                #print('reached end of data') 
-                pass
+            tmp = self._make_tensors(audio_pair, True)
+            audio_pair = self.get_next_audio_pair() 
+            yield tmp
+
+    def none_iter(self):
+        while True:
+            yield None
 
     def batch(self, data, batch_size, pad, adapt_batch_size):
         max_length_in = 450  #tuned by hand for batch size of 64
@@ -168,9 +156,8 @@ class HybridOrderedIterator:
         minibatch = []
         max_len = [0, 0]
         for ex in data:
-            audio_src_, aug_src_, flag_, sl_, tl_, tgt_ = ex
-            max_len[0] = audio_src_.size(0) if audio_src_.size(0) > max_len[0] else max_len[0]
-            max_len[0] = aug_src_.size(0) if aug_src_.size(0) > max_len[0] else max_len[0]
+            src_, is_audio_, flag_, sl_, tl_, tgt_ = ex
+            max_len[0] = src_.size(0) if src_.size(0) > max_len[0] else max_len[0]
             max_len[1] = tgt_.size(0) if tgt_.size(0) > max_len[1] else max_len[1]
             if adapt_batch_size:
                 factor = max(int(max_len[0] / max_length_in), int(max_len[1] / max_length_out))
@@ -182,21 +169,20 @@ class HybridOrderedIterator:
             if len(minibatch) >= current_batch_limit:
                 merged_minibatch = []
                 for mini_ex in minibatch:
-                    audio_src, aug_src, flag, sl, tl, tgt = mini_ex
+                    src, is_audio, flag, sl, tl, tgt = mini_ex
                     if pad:
-                        audio_src = torch.cat([audio_src, torch.zeros(max_len[0] - audio_src.size(0), 1, audio_src.size(2))], dim=0)
-                        tmp = torch.zeros(max_len[0] - aug_src.size(0), 1).long()
-                        aug_src = torch.cat([aug_src, tmp], dim=0)
-                        tgt = torch.cat([tgt, torch.zeros(max_len[1] - tgt.size(0), 1).long()], dim=0)
+                        src_padder = torch.zeros(max_len[0] - src.size(0), 1, src.size(2)).type_as(src)
+                        src = torch.cat([src, src_padder], dim=0)
+                        tgt_padder = torch.zeros(max_len[1] - tgt.size(0), 1).type_as(tgt)
+                        tgt = torch.cat([tgt, tgt_padder], dim=0)
                     else:
                       pass
-                    ex_instance_padded = ExInstance(audio_src, aug_src, flag, sl, tl, tgt)
+                    ex_instance_padded = ExInstance(src, is_audio, flag, sl, tl, tgt)
                     merged_minibatch.append(ex_instance_padded) 
-                    #merged_minibatch.append((audio_src, aug_src, flag, sl, tl, tgt))
                 minibatch = []
                 #print('max_len', max_len, current_batch_limit)
-                if adapt_batch_size:
-                    #print('current_batch_limit', current_batch_limit, 'max_lens', max_len[0], max_len[1], 'factor', factor)
+                if pad and adapt_batch_size:
+                    #print(self.train_mode, 'current_batch_limit', current_batch_limit, 'max_lens', max_len[0], max_len[1], 'factor', factor)
                     pass
                 max_len = [0, 0]
                 yield merged_minibatch
@@ -204,51 +190,79 @@ class HybridOrderedIterator:
         if len(minibatch) > 0:
             merged_minibatch = []
             for mini_ex in minibatch:
-                audio_src, aug_src, flag, sl, tl, tgt = mini_ex
+                src, is_audio, flag, sl, tl, tgt = mini_ex
                 if pad:
-                    #TODO: use pytorch's built in padder torch.nn.utils.rnn.pad_sequence
-                    audio_src = torch.cat([audio_src, torch.zeros(max_len[0] - audio_src.size(0), 1, audio_src.size(2))], dim=0)
-                    aug_src = torch.cat([aug_src, torch.zeros(max_len[0] - aug_src.size(0), 1).long()], dim=0)
-                    tgt = torch.cat([tgt, torch.zeros(max_len[1] - tgt.size(0), 1).long()], dim=0)
+                    src_padder = torch.zeros(max_len[0] - src.size(0), 1, src.size(2)).type_as(src)
+                    src = torch.cat([src, src_padder], dim=0)
+                    tgt_padder = torch.zeros(max_len[1] - tgt.size(0), 1).type_as(tgt)
+                    tgt = torch.cat([tgt, tgt_padder], dim=0)
                 else:
                   pass
-                ex_instance_padded = ExInstance(audio_src, aug_src, flag, sl, tl, tgt)
+                ex_instance_padded = ExInstance(src, is_audio, flag, sl, tl, tgt)
                 merged_minibatch.append(ex_instance_padded) 
-                #merged_minibatch.append((audio_src, aug_src, flag, sl, tl, tgt))
             minibatch = []
-            #print('final batch', len(merged_minibatch), 'max_lens', max_len[0], max_len[1])
+            if pad and adapt_batch_size:
+                #print(self.train_mode, 'final_batch_limit', len(merged_minibatch), 'max_lens', max_len[0], max_len[1],'factor', None)
+                pass
             max_len = [0, 0]
             yield merged_minibatch
 
-    def pool(self, data, do_shuffle=True, bucket_factor = 50): #TODO: bucket_factor should be small for toy data
+    def pool(self, audio_iter, aug_iter, mix_factor, do_shuffle, bucket_factor): #TODO: bucket_factor should be small for toy data
         """Sort within buckets, then batch, then shuffle batches.
         Partitions data into chunks of size 100*batch_size, sorts examples within
         each chunk using sort_key, then batch these examples and shuffle the
         batches.
         """
+        processed = 0
         random_shuffler = random.shuffle
-        for idx_o, p in enumerate(self.batch(data, self.batch_size * bucket_factor, False, False)):
-            p_iter = self.batch(sorted(p, key=lambda x: -x.src_length), self.batch_size, True, True)
-            #p_iter = self.batch(p, self.batch_size, True)
-            # TODO: how to do random_shuffle
-            # for b in random_shuffler(list(p_iter)):
-            p_list = list(p_iter)
+        audio_bucket_factor = int((1.0 - mix_factor) * (bucket_factor))
+        aug_bucket_factor = int(mix_factor *  (bucket_factor))
+        audio_bucket_iter = self.batch(audio_iter, self.batch_size * audio_bucket_factor, False, False)
+        if aug_iter is not None and aug_bucket_factor > 0:
+            augment_bucket_iter = self.batch(aug_iter, self.batch_size * aug_bucket_factor, False, False)
+        else:
+            print('None iter used')
+            augment_bucket_iter = self.none_iter() #some iter that returns None forever
+        for  aug_bucket, audio_bucket in zip(augment_bucket_iter, audio_bucket_iter):  #in enumerate(concat_batch):
+            if audio_bucket is not None:
+                sorted_audio_bucket = sorted(audio_bucket, key=lambda x: -x.src_length)
+                audio_p_iter = self.batch(sorted_audio_bucket, self.batch_size, pad = True, adapt_batch_size= True)
+                audio_p_list = list(audio_p_iter)
+            else:
+                audio_p_list = []
+                #print('ending pool loop')
+                #break # the loop ends once audio data is completed
+            if aug_bucket is not None:
+                sorted_aug_bucket = sorted(aug_bucket, key=lambda x: -x.src_length)
+                aug_p_iter = self.batch(sorted_aug_bucket, self.batch_size, pad = True, adapt_batch_size= True)
+                aug_p_list = list(aug_p_iter)
+            else:
+                aug_p_list = []
+            p_list = aug_p_list + audio_p_list
             if do_shuffle:
               random_shuffler(p_list)
             for b in p_list:
-                audio_src_batch, aug_src_batch, flag_batch, sl_batch, tl_batch, tgt_batch = zip(*b)
-                audio_src_batch = Variable(torch.cat(audio_src_batch, dim=1), volatile=(not self.train_mode))
-                aug_src_batch = Variable(torch.cat(aug_src_batch, dim=1), volatile=(not self.train_mode)).unsqueeze(2)
+                src_batch, is_audio_batch, flag_batch, sl_batch, tl_batch, tgt_batch = zip(*b)
                 flag_batch = Variable(torch.cat(flag_batch, dim=1), volatile=(not self.train_mode))
+                assert flag_batch.data[0][0] == flag_batch.data[0][-1]
+                assert flag_batch.data[1][0] == flag_batch.data[1][-1]
+                if flag_batch.data[0][0] == 1:
+                    assert is_audio_batch[0]
+                    is_audio = True
+                    src_batch = Variable(torch.cat(src_batch, dim=1), volatile=(not self.train_mode))
+                else:
+                    assert not is_audio_batch[0]
+                    is_audio = False
+                    src_batch = Variable(torch.cat(src_batch, dim=1), volatile=(not self.train_mode))
                 tgt_batch = Variable(torch.cat(tgt_batch, dim=1), volatile=(not self.train_mode)).unsqueeze(2)
                 sl_batch = torch.LongTensor(list(sl_batch))
                 tl_batch = torch.LongTensor(list(tl_batch))
                 if self.device != -1: 
-                    audio_src_batch = audio_src_batch.cuda()
-                    aug_src_batch = aug_src_batch.cuda() 
+                    src_batch = src_batch.cuda() 
                     flag_batch = flag_batch.cuda()
                     sl_batch = sl_batch.cuda()
                     tl_batch = tl_batch.cuda()
                     tgt_batch = tgt_batch.cuda()
-                yield audio_src_batch, aug_src_batch, flag_batch, sl_batch, tl_batch, tgt_batch
-
+                processed += src_batch.size(1)
+                #print(self.train_mode, is_audio, 'src_dim', src_batch.shape, 'tgt_dim', tgt_batch.shape, 'processed', processed)
+                yield ExInstance(src_batch, is_audio, flag_batch, sl_batch, tl_batch, tgt_batch)

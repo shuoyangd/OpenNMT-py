@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import onmt
 import onmt.modules
+from onmt.modules.HybridOrderedIterator import ExInstance
 
 
 class Statistics(object):
@@ -99,7 +100,8 @@ class Trainer(object):
         report_stats = Statistics()
         for i, batch in enumerate(self.train_iter):
             if isinstance(batch, tuple):
-              target_size = batch[-1].size(0)
+              target_size = batch.tgt.size(0)
+              #target_size = batch[-1].size(0)
             else:
               target_size = batch.tgt.size(0)
             # Truncated BPTT
@@ -107,14 +109,14 @@ class Trainer(object):
 
             dec_state = None
             if isinstance(batch, tuple):
-              src_lengths = batch[3]
+              src_lengths = batch.src_length
             else:
               _, src_lengths = batch.src
 
             # TODO: fix the extra lengths in the train_iter
             if isinstance(batch, tuple):
-              src = (batch[0], batch[1], batch[2])
-              tgt_outer = batch[-1]
+              src = (batch.src, batch.is_audio, batch.flags)
+              tgt_outer = batch.tgt
             else:
               src = onmt.IO.make_features(batch, 'src')
               tgt_outer = onmt.IO.make_features(batch, 'tgt')

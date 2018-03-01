@@ -7,6 +7,7 @@ import onmt.modules
 import onmt.IO
 from onmt.Utils import use_gpu
 import pickle as pkl
+from onmt.modules.HybridOrderedIterator import ExInstance
 
 class Translator(object):
     def __init__(self, opt, dummy_opt={}):
@@ -118,16 +119,16 @@ class Translator(object):
 
     def translateBatch(self, batch, dataset):
         beam_size = self.opt.beam_size
-        if not isinstance(batch, tuple):
-            batch_size = batch.batch_size
+        if isinstance(batch, tuple):
+            batch_size = batch.src.size(1)
         else:
-            batch_size = batch[0].size(1)
+            batch_size = batch.batch_size
 
         # (1) Run the encoder on the src.
         if isinstance(batch, tuple):
-            src = (batch[0], batch[1], batch[2])
-            tgt = batch[-1]
-            src_lengths = batch[3]
+            src = (batch.src, batch.is_audio, batch.flags)
+            tgt = batch.tgt
+            src_lengths = batch.src_length
             encStates, context = self.model.encoder(src, src_lengths)
             decStates = self.model.decoder.init_decoder_state(
                                         src, context, encStates)
