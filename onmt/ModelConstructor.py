@@ -111,6 +111,7 @@ def make_decoder(opt, embeddings):
                                    opt.use_highway_concat)
     elif opt.input_feed:
         print("making input feed decoder")
+        assert min(opt.aug_enc_layers, opt.enc_layers) >= opt.dec_layers
         return InputFeedRNNDecoder(opt.rnn_type, opt.brnn,
                                    opt.dec_layers, opt.rnn_size,
                                    opt.global_attention,
