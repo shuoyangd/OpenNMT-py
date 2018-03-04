@@ -69,9 +69,11 @@ def make_encoder(opt, embeddings):
                              opt.num_concat_flags, opt.add_noise, opt.use_highway_concat, 
                              opt.do_subsample, opt.do_weight_norm, opt.gpuid)
     elif opt.encoder_type == "hybrid_dual":
-        return HybridDualEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
+        return HybridDualEncoder(opt.rnn_type, opt.brnn, 
+                             opt.enc_layers, opt.aug_enc_layers,
                              opt.rnn_size, opt.dropout, embeddings, 
-                             opt.num_concat_flags, opt.add_noise, opt.use_highway_concat, 
+                             opt.num_concat_flags, opt.add_noise, 
+                             opt.use_highway_concat, 
                              opt.do_subsample, opt.do_weight_norm, opt.gpuid)
     else:
         # "rnn" or "brnn"

@@ -225,7 +225,7 @@ class HybridEncoder(RNNEncoder):
         return (hidden_t, cell_t), outputs
 
 class HybridDualEncoder(RNNEncoder):
-    def __init__(self, rnn_type, bidirectional, num_layers,
+    def __init__(self, rnn_type, bidirectional, num_layers, aug_num_layers,
                  hidden_size, dropout, embeddings, 
                  num_concat_flags, add_noise, highway_concat, 
                  do_subsample, do_weight_norm, use_gpu):
@@ -262,10 +262,10 @@ class HybridDualEncoder(RNNEncoder):
       self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
 
       aug_rnn_list = []
-      for i in range(1): #hard-coding only 1 layer for augmenting data
+      for i in range(aug_num_layers):
           rnn = getattr(nn, rnn_type)(
-                    input_size= embeddings.embedding_size, 
-                    hidden_size=hidden_size, 
+                    input_size= (hidden_size * num_directions) if i > 0 else embeddings.embedding_size, 
+                    hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
@@ -301,14 +301,13 @@ class HybridDualEncoder(RNNEncoder):
             emb = input #(seq_len, batch_size, feats)
         else:
             emb = self.embeddings(input) #(seq_len, batch_size) --> (seq_len, batch_size, feats)
-
-        if self.add_noise:
-            n = torch.rand(1, emb.size(1), emb.size(2))#.type_as(input.data)
-            n = Variable(n, requires_grad=False) 
-            if len(self.use_gpu) > 0:
-                emb += n.cuda()
-            else:
-                emb += n
+            if self.add_noise:
+                n = torch.randn(1, emb.size(1), emb.size(2))#.type_as(input.data)
+                n = Variable(n, requires_grad=False) 
+                if len(self.use_gpu) > 0:
+                    emb += n.cuda()
+                else:
+                    emb += n
 
         if lengths is not None and not self.no_pack_padded_seq:
             # Lengths data is wrapped inside a Variable.

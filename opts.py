@@ -47,6 +47,8 @@ def model_opts(parser):
     
     #parser.add_argument('-layers', type=int, default=-1,
     #                    help='Number of layers in enc/dec.')
+    parser.add_argument('-aug_enc_layers', type=int, default=1,
+                        help='Number of layers in the augment data encoder')
     parser.add_argument('-enc_layers', type=int, default=2,
                         help='Number of layers in the encoder')
     parser.add_argument('-dec_layers', type=int, default=1,
