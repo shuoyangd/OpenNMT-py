@@ -1,3 +1,4 @@
+import torch
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm
 
@@ -21,10 +22,11 @@ class Optim(object):
     def __init__(self, method, lr, max_grad_norm,
                  lr_decay=1, start_decay_at=None,
                  beta1=0.9, beta2=0.98,
-                 opt=None):
+                 opt=None, grad_clip=None):
         self.last_ppl = None
         self.lr = lr
         self.max_grad_norm = max_grad_norm
+        self.grad_clip = grad_clip
         self.method = method
         self.lr_decay = lr_decay
         self.start_decay_at = start_decay_at
@@ -51,6 +53,11 @@ class Optim(object):
 
         if self.max_grad_norm:
             clip_grad_norm(self.params, self.max_grad_norm)
+
+        if self.grad_clip:
+            for param in filter(lambda x: x.grad is not None, self.params):
+              param.grad.data = torch.clamp(param.grad.data, -self.grad_clip, self.grad_clip)
+
         self.optimizer.step()
 
     def updateLearningRate(self, ppl, epoch):
