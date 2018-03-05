@@ -4,7 +4,6 @@ import random
 import torch
 from torch.autograd import Variable
 from collections import namedtuple
-import pdb
 
 ExInstance = namedtuple('ExInstance', 'src is_audio flags src_length tgt_length tgt')
 class HybridOrderedIterator:
@@ -15,7 +14,9 @@ class HybridOrderedIterator:
       self.num_epochs = num_epochs
       self.num_audio_instances =  num_audio_instances
       self.audio_src_reader_file = audio_file + '.src'
+      self.audio_src_reader = None
       self.audio_tgt_reader_file = audio_file + '.tgt'
+      self.audio_tgt_reader = None
       self.tgt_vocab = tgt_vocab #torch.load(vocab_file)[1][1]
       #self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.flags_size = 2 #len(augmenting_data_names) + 1
@@ -53,6 +54,7 @@ class HybridOrderedIterator:
     def create_batches(self):
        #initialize file readers to starting point
        self.init_audio_reader()
+       self.init_aug_reader()
        if self.train_mode:
            self.epoch_counter += 1
            self.mix_factor -= self.mix_step
@@ -63,7 +65,7 @@ class HybridOrderedIterator:
                mf = self.mix_factor
            else:
                mf = 0.0
-           self.batches = self.pool(self.audio_data(), self.augment_data(), mix_factor = mf, do_shuffle = True, bucket_factor = 50)
+           self.batches = self.pool(self.audio_data(), self.augment_data(), mix_factor = mf, do_shuffle = True, bucket_factor = 10)
        else:
            self.batches = self.pool(self.audio_data(), self.none_iter(), mix_factor = 0.0, do_shuffle = False, bucket_factor = 1) #buckect_factor =1 ensures order of batches is unchanged.
 
@@ -264,5 +266,5 @@ class HybridOrderedIterator:
                     tl_batch = tl_batch.cuda()
                     tgt_batch = tgt_batch.cuda()
                 processed += src_batch.size(1)
-                #print(self.train_mode, is_audio, 'src_dim', src_batch.shape, 'tgt_dim', tgt_batch.shape, 'processed', processed)
+                print(self.train_mode, is_audio, 'src_dim', src_batch.shape, 'tgt_dim', tgt_batch.shape, 'processed', processed)
                 yield ExInstance(src_batch, is_audio, flag_batch, sl_batch, tl_batch, tgt_batch)

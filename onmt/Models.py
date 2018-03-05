@@ -7,6 +7,7 @@ from torch.nn.utils.rnn import pad_packed_sequence as unpack
 from torch.nn.utils import weight_norm
 import onmt
 from onmt.Utils import aeq
+import pdb
 
 
 class EncoderBase(nn.Module):
@@ -225,7 +226,7 @@ class HybridEncoder(RNNEncoder):
         return (hidden_t, cell_t), outputs
 
 class HybridDualEncoder(RNNEncoder):
-    def __init__(self, rnn_type, bidirectional, num_layers, aug_num_layers,
+    def __init__(self, rnn_type, bidirectional, num_audio_layers, num_aug_layers,
                  hidden_size, dropout, embeddings, 
                  num_concat_flags, add_noise, highway_concat, 
                  do_subsample, do_weight_norm, use_gpu):
@@ -235,9 +236,14 @@ class HybridDualEncoder(RNNEncoder):
       self.highway_concat = highway_concat
       self.add_noise = add_noise
       self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
+      self.num_audio_layers = num_audio_layers
+      self.num_aug_layers = num_aug_layers
       self.do_subsample = do_subsample
       self.do_weight_norm = do_weight_norm
       self.use_gpu = use_gpu
+      assert self.num_aug_layers <= self.num_audio_layers
+      assert self.num_audio_layers % self.num_aug_layers == 0
+      self.rep = self.num_audio_layers // self.num_aug_layers
       #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
 
       num_directions = 2 if bidirectional else 1
@@ -246,7 +252,7 @@ class HybridDualEncoder(RNNEncoder):
 
       audio_rnn_list = []
       self.rnn = None
-      for i in range(num_layers):
+      for i in range(num_audio_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else embeddings.embedding_size, 
                     hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
@@ -262,7 +268,7 @@ class HybridDualEncoder(RNNEncoder):
       self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
 
       aug_rnn_list = []
-      for i in range(aug_num_layers):
+      for i in range(num_aug_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else embeddings.embedding_size, 
                     hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
@@ -297,17 +303,16 @@ class HybridDualEncoder(RNNEncoder):
         """ See EncoderBase.forward() for description of args and returns."""
         self._check_args(input, lengths, hidden)
         input, is_input_audio, input_flag = input 
+        #print('start batch', is_input_audio)
         if is_input_audio:
             emb = input #(seq_len, batch_size, feats)
         else:
             emb = self.embeddings(input) #(seq_len, batch_size) --> (seq_len, batch_size, feats)
             if self.add_noise:
-                n = torch.randn(1, emb.size(1), emb.size(2))#.type_as(input.data)
+                n = torch.randn(1, emb.size(1), emb.size(2)).type_as(emb.data)
                 n = Variable(n, requires_grad=False) 
-                if len(self.use_gpu) > 0:
-                    emb += n.cuda()
-                else:
-                    emb += n
+                emb += n
+                #print('added noise')
 
         if lengths is not None and not self.no_pack_padded_seq:
             # Lengths data is wrapped inside a Variable.
@@ -336,12 +341,17 @@ class HybridDualEncoder(RNNEncoder):
             concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
             concat_flag = concat_flag.expand(outputs.size(0), concat_flag.size(1), concat_flag.size(2))
             outputs = torch.cat([outputs, concat_flag.float()], dim=2)  # (seq_len, batch_size, hidden_size)
+            #print('added highway concat')
         else:
             pass       
 
         hl, cl = zip(*hidden_t)
         hidden_t = torch.cat(hl, dim=0)  
         cell_t = torch.cat(cl, dim=0)
+        if not is_input_audio and self.rep > 1:
+            hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
+            cell_t = torch.cat([cell_t] * self.rep, dim = 0)
+        #print('done', is_input_audio)
         return (hidden_t, cell_t), outputs
 
 

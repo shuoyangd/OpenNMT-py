@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 source ./project.config
-source ./run.config
+source ./run.toy.config
 device=`free-gpu`
 echo $device
 
