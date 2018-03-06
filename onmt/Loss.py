@@ -107,7 +107,7 @@ class ASRLossCompute(LossComputeBase):
 
         weight = torch.ones(len(tgt_vocab))
         weight[self.padding_idx] = 0
-        self.criterion = nn.NLLLoss(weight, size_average=True)
+        self.criterion = nn.NLLLoss(weight, size_average=False)
 
     def make_shard_state(self, batch, output, range_, attns=None):
         """ See base class for args description. """
