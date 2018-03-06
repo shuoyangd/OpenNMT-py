@@ -13,6 +13,8 @@ def model_opts(parser):
     # Embedding Options
     parser.add_argument('-word_vec_size', type=int, default=-1,
                         help='Word embedding for both.')
+    parser.add_argument('-aug_vec_size', type=int, default=-1,
+                        help='aug word embedding.')
     parser.add_argument('-src_word_vec_size', type=int, default=500,
                         help='Src word embedding sizes')
     parser.add_argument('-tgt_word_vec_size', type=int, default=500,
@@ -60,6 +62,7 @@ def model_opts(parser):
 
     parser.add_argument('-rnn_size', type=int, default=500,
                         help='Size of LSTM hidden states')
+
     parser.add_argument('-input_feed', type=int, default=1,
                         help="""Feed the context vector at each time step as
                         additional input (via concatenation with the word
@@ -108,7 +111,6 @@ def model_opts(parser):
                         help='add noise to the augmented token embeddings')
     parser.add_argument('-use_highway_concat', type=int, default=0, choices=set((0, 1)),
                         help='use highway concatenation')
-
     parser.add_argument('-do_weight_norm', type=int, default=0, choices=set([0]), # do not allow weight norm for now
                         help='apply weight norm paramerterization to RNN')
     parser.add_argument('-do_subsample', type=int, default=0, choices=set((0, 1)),

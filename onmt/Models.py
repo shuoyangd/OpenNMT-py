@@ -7,7 +7,6 @@ from torch.nn.utils.rnn import pad_packed_sequence as unpack
 from torch.nn.utils import weight_norm
 import onmt
 from onmt.Utils import aeq
-import pdb
 
 
 class EncoderBase(nn.Module):
@@ -227,7 +226,7 @@ class HybridEncoder(RNNEncoder):
 
 class HybridDualEncoder(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_audio_layers, num_aug_layers,
-                 hidden_size, dropout, embeddings, 
+                 hidden_size, dropout, embeddings, audio_vec_size,
                  num_concat_flags, add_noise, highway_concat, 
                  do_subsample, do_weight_norm, use_gpu):
       super(HybridDualEncoder, self).__init__(rnn_type, bidirectional, 1,
@@ -244,7 +243,6 @@ class HybridDualEncoder(RNNEncoder):
       assert self.num_aug_layers <= self.num_audio_layers
       assert self.num_audio_layers % self.num_aug_layers == 0
       self.rep = self.num_audio_layers // self.num_aug_layers
-      #rnn_list.append(self.rnn) # get the RNNBaseEncoder's rnn
 
       num_directions = 2 if bidirectional else 1
       assert hidden_size % num_directions == 0
@@ -254,7 +252,7 @@ class HybridDualEncoder(RNNEncoder):
       self.rnn = None
       for i in range(num_audio_layers):
           rnn = getattr(nn, rnn_type)(
-                    input_size= (hidden_size * num_directions) if i > 0 else embeddings.embedding_size, 
+                    input_size= (hidden_size * num_directions) if i > 0 else audio_vec_size, #embeddings.embedding_size, 
                     hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
@@ -270,7 +268,7 @@ class HybridDualEncoder(RNNEncoder):
       aug_rnn_list = []
       for i in range(num_aug_layers):
           rnn = getattr(nn, rnn_type)(
-                    input_size= (hidden_size * num_directions) if i > 0 else embeddings.embedding_size, 
+                    input_size= (hidden_size * num_directions) if i > 0 else self.embeddings.embedding_size,
                     hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
