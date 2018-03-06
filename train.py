@@ -20,10 +20,6 @@ opts.model_opts(parser)
 opts.train_opts(parser)
 
 opt = parser.parse_args()
-if opt.word_vec_size != -1:
-    opt.src_word_vec_size = opt.word_vec_size
-    opt.tgt_word_vec_size = opt.word_vec_size
-
 #if opt.layers != -1:
 #    opt.enc_layers = opt.layers
 #    opt.dec_layers = opt.layers
@@ -117,7 +113,6 @@ def make_hybrid_train_data_iter(train_data, opt, valid_data):
            end_mix_factor = opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
            num_aug_instances = train_data.num_aug_instances,
            num_audio_instances = train_data.num_audio_instances,
-           embedding_size = opt.src_word_vec_size,
            num_epochs = opt.epochs,
            device = opt.gpuid[0] if opt.gpuid else -1)
 
@@ -151,7 +146,6 @@ def make_hybrid_valid_data_iter(train_data, opt, valid_data):
            end_mix_factor = 0.0, #opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
            num_aug_instances = valid_data.num_aug_instances,
            num_audio_instances = valid_data.num_audio_instances,
-           embedding_size = opt.src_word_vec_size,
            num_epochs = opt.epochs,
            device = opt.gpuid[0] if opt.gpuid else -1)
 

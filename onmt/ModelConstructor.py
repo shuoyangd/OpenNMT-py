@@ -73,7 +73,7 @@ def make_encoder(opt, embeddings):
     elif opt.encoder_type == "hybrid_dual":
         return HybridDualEncoder(opt.rnn_type, opt.brnn, 
                              opt.enc_layers, opt.aug_enc_layers,
-                             opt.rnn_size, opt.dropout, embeddings, opt.src_word_vec_size,
+                             opt.rnn_size, opt.dropout, embeddings, opt.audio_feat_size,
                              opt.num_concat_flags, opt.add_noise, 
                              opt.use_highway_concat, 
                              opt.do_subsample, opt.do_weight_norm, opt.gpuid)
@@ -149,7 +149,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
 
     # Make encoder.
     if model_opt.model_type == "text":
-        src_dict = fields["src"].vocab
+        src_dict = fields["src"].vocab #AUG vocab 
         feature_dicts = ONMTDataset.collect_feature_dicts(fields)
         src_embeddings = make_embeddings(model_opt, src_dict,
                                          feature_dicts)

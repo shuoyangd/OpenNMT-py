@@ -8,7 +8,7 @@ from collections import namedtuple
 ExInstance = namedtuple('ExInstance', 'src is_audio flags src_length tgt_length tgt')
 class HybridOrderedIterator:
     def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab,  augmenting_data_names, init_mix_factor, end_mix_factor,
-            num_aug_instances, num_audio_instances, embedding_size, num_epochs, device):
+            num_aug_instances, num_audio_instances, num_epochs, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
       self.num_epochs = num_epochs
@@ -36,7 +36,6 @@ class HybridOrderedIterator:
           self.aug_tgt_reader_file = None
           self.mix_factor = 0.0
           self.num_aug_instances = 0 #num_aug_instances
-      self.embedding_size = embedding_size
       self.epoch_counter = 0
 
     def init_audio_reader(self,):

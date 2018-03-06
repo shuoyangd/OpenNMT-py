@@ -11,12 +11,12 @@ def model_opts(parser):
     parser.add_argument('-model_type', default='text',
                         help="Type of encoder to use. Options are [text|img].")
     # Embedding Options
-    parser.add_argument('-word_vec_size', type=int, default=-1,
-                        help='Word embedding for both.')
     parser.add_argument('-aug_vec_size', type=int, default=-1,
                         help='aug word embedding.')
     parser.add_argument('-src_word_vec_size', type=int, default=500,
                         help='Src word embedding sizes')
+    parser.add_argument('-audio_feat_size', type=int, default=83,
+                        help='feature size of each audio frame')
     parser.add_argument('-tgt_word_vec_size', type=int, default=500,
                         help='Tgt word embedding sizes')
 
