@@ -266,5 +266,5 @@ class HybridOrderedIterator:
                     tl_batch = tl_batch.cuda()
                     tgt_batch = tgt_batch.cuda()
                 processed += src_batch.size(1)
-                print(self.train_mode, is_audio, 'src_dim', src_batch.shape, 'tgt_dim', tgt_batch.shape, 'processed', processed)
+                #print(self.train_mode, is_audio, 'src_dim', src_batch.shape, 'tgt_dim', tgt_batch.shape, 'processed', processed)
                 yield ExInstance(src_batch, is_audio, flag_batch, sl_batch, tl_batch, tgt_batch)
