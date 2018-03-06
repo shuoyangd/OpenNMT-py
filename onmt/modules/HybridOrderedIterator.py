@@ -172,9 +172,9 @@ class HybridOrderedIterator:
                 for mini_ex in minibatch:
                     src, is_audio, flag, sl, tl, tgt = mini_ex
                     if pad:
-                        src_padder = torch.zeros(max_len[0] - src.size(0), 1, src.size(2)).type_as(src)
+                        src_padder = torch.ones(max_len[0] - src.size(0), 1, src.size(2)).type_as(src) * self.aug_src_vocab.stoi['<pad>']
                         src = torch.cat([src, src_padder], dim=0)
-                        tgt_padder = torch.zeros(max_len[1] - tgt.size(0), 1).type_as(tgt)
+                        tgt_padder = torch.ones(max_len[1] - tgt.size(0), 1).type_as(tgt) * self.tgt_vocab.stoi['<pad>']
                         tgt = torch.cat([tgt, tgt_padder], dim=0)
                     else:
                       pass
@@ -193,9 +193,9 @@ class HybridOrderedIterator:
             for mini_ex in minibatch:
                 src, is_audio, flag, sl, tl, tgt = mini_ex
                 if pad:
-                    src_padder = torch.zeros(max_len[0] - src.size(0), 1, src.size(2)).type_as(src)
+                    src_padder = torch.ones(max_len[0] - src.size(0), 1, src.size(2)).type_as(src) * self.aug_src_vocab.stoi['<pad>']
                     src = torch.cat([src, src_padder], dim=0)
-                    tgt_padder = torch.zeros(max_len[1] - tgt.size(0), 1).type_as(tgt)
+                    tgt_padder = torch.ones(max_len[1] - tgt.size(0), 1).type_as(tgt) * self.tgt_vocab.stoi['<pad>']
                     tgt = torch.cat([tgt, tgt_padder], dim=0)
                 else:
                   pass
