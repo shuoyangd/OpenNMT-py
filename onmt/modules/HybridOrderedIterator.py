@@ -54,7 +54,6 @@ class HybridOrderedIterator:
     def create_batches(self):
        #initialize file readers to starting point
        self.init_audio_reader()
-       self.init_aug_reader()
        if self.train_mode:
            self.epoch_counter += 1
            self.mix_factor -= self.mix_step
@@ -65,12 +64,12 @@ class HybridOrderedIterator:
                mf = self.mix_factor
            else:
                mf = 0.0
-           self.batches = self.pool(self.audio_data(), self.augment_data(), mix_factor = mf, do_shuffle = True, bucket_factor = 10)
+           self.batches = self.pool(self.audio_data(), self.augment_data(), mix_factor = mf, do_shuffle = True, bucket_factor = 100)
        else:
            self.batches = self.pool(self.audio_data(), self.none_iter(), mix_factor = 0.0, do_shuffle = False, bucket_factor = 1) #buckect_factor =1 ensures order of batches is unchanged.
 
     def __len__(self):
-      s = self.num_audio_instances + self.num_aug_instances
+      s = (1.0 / (1.0 - self.mix_factor)) * self.num_audio_instances
       return math.ceil(s / self.batch_size)
 
     def __iter__(self):
