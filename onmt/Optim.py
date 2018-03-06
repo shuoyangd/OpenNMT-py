@@ -51,10 +51,10 @@ class Optim(object):
                  min(self._step ** (-0.5),
                      self._step * self.opt.warmup_steps**(-1.5))))
 
-        if self.max_grad_norm:
+        if self.max_grad_norm > 0:
             clip_grad_norm(self.params, self.max_grad_norm)
 
-        if self.grad_clip:
+        if self.grad_clip > 0:
             for param in filter(lambda x: x.grad is not None, self.params):
               param.grad.data = torch.clamp(param.grad.data, -self.grad_clip, self.grad_clip)
 

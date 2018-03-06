@@ -215,9 +215,8 @@ def train_opts(parser):
                         help="""Optimization method.""")
     parser.add_argument('-max_grad_norm', type=float, default=5,
                         help="""If the norm of the gradient vector exceeds this,
-                        renormalize it to have the norm equal to
-                        max_grad_norm""")
-    parser.add_argument('-grad_clip', type=float, default=None,
+                        renormalize it to have the norm equal to max_grad_norm""")
+    parser.add_argument('-grad_clip', type=float, default=-1,
                         help="""If absolute value of  one element in the gradient
                         is larger than this value, it will be clipped to this value.""")
     parser.add_argument('-dropout', type=float, default=0.3,
