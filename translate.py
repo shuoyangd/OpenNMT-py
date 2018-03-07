@@ -77,7 +77,6 @@ def main():
            end_mix_factor = 0.0, #opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
            num_aug_instances = 0, 
            num_audio_instances = num_audio_instances,
-           embedding_size = translator.model.encoder.embeddings.embedding_size,
            num_epochs = 1, 
            device = opt.gpu if opt.gpu else -1)
     else:
