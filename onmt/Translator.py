@@ -24,19 +24,22 @@ class Translator(object):
 
         self._type = model_opt.encoder_type
         self.copy_attn = model_opt.copy_attn
-
         self.model = onmt.ModelConstructor.make_base_model(
                             model_opt, self.fields, use_gpu(opt), checkpoint)
         self.model.eval()
         self.model.generator.eval()
 
         #for length penalty
-        f = open(opt.length_prior_file,'rb')
-        f = pkl._Unpickler(f)
-        f.encoding = 'latin1'
-        self.length_prior = f.load()
-        assert isinstance(self.length_prior, tuple)
-        self.length_prior_factor = opt.length_prior_factor
+        if opt.length_prior_file is not None:
+            f = open(opt.length_prior_file,'rb')
+            f = pkl._Unpickler(f)
+            f.encoding = 'latin1'
+            self.length_prior = f.load()
+            assert isinstance(self.length_prior, tuple)
+            self.length_prior_factor = opt.length_prior_factor
+        else:
+            self.length_prior = None
+            self.length_prior_factor = 0.0
         self.length_penalty = opt.length_penalty
 
         # for debugging
