@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import onmt
-import pdb
+import numpy as np
 
 
 class LossComputeBase(nn.Module):
@@ -150,8 +150,11 @@ class ASRLossCompute(LossComputeBase):
         shard_state = self.make_shard_state(batch, output, range_, attns)
         for shard in shards(shard_state, shard_size):
             loss, stats = self.compute_loss(batch, **shard)
-            loss.div(batch[0].size(1)).backward()
-            batch_stats.update(stats)
+            if np.any(np.isnan(loss.data.numpy())):
+                print('skipping nan loss')
+            else:
+                loss.div(batch[0].size(1)).backward()
+                batch_stats.update(stats)
             #del loss
         return batch_stats
 
