@@ -234,7 +234,6 @@ class HybridDualEncoder(RNNEncoder):
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
       self.add_noise = add_noise
-      self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
       self.num_audio_layers = num_audio_layers
       self.num_aug_layers = num_aug_layers
       self.do_subsample = do_subsample
@@ -253,7 +252,7 @@ class HybridDualEncoder(RNNEncoder):
       for i in range(num_audio_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else audio_vec_size, #embeddings.embedding_size, 
-                    hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
+                    hidden_size= (hidden_size - 1) if i == (num_audio_layers - 1) and self.highway_concat == 1 else hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
@@ -269,7 +268,7 @@ class HybridDualEncoder(RNNEncoder):
       for i in range(num_aug_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else self.embeddings.embedding_size,
-                    hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
+                    hidden_size= (hidden_size - 1) if i == (num_aug_layers - 1) and self.highway_concat == 1 else hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
@@ -321,7 +320,8 @@ class HybridDualEncoder(RNNEncoder):
         hidden_t = []
         rnn_list = self.audio_rnn_list if is_input_audio else self.aug_rnn_list
         for idx, rnn in enumerate(rnn_list):
-            #print('rnn', idx)
+            #print('rnn', idx, 'is_input_audio', is_input_audio)
+            #print('using rnn', rnn)
             outputs, (h_t, c_t) = rnn(outputs, hidden)
             hidden_t.append((h_t, c_t))
             if idx < 2 and self.do_subsample == 1 and is_input_audio:
@@ -333,23 +333,34 @@ class HybridDualEncoder(RNNEncoder):
             outputs, lengths = unpack(outputs)
 
         if self.num_concat_flags > 0 and self.highway_concat > 0:
-            outputs = self.highway_linear(outputs) # (seq_len, batch_size, hidden_size - num_concat_flags)
+            #print(outputs.shape, 'is the output shape hw start')
             assert input_flag.size(0) == self.num_concat_flags
             concat_flag = input_flag.transpose(0,1) #(b,f)
             concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
             concat_flag = concat_flag.expand(outputs.size(0), concat_flag.size(1), concat_flag.size(2))
             outputs = torch.cat([outputs, concat_flag.float()], dim=2)  # (seq_len, batch_size, hidden_size)
-            #print('added highway concat')
+            #print(outputs.shape, ' is the output shape hw done')
         else:
             pass       
 
+        #print(outputs.shape, 'is the output shape')
         hl, cl = zip(*hidden_t)
+        hl = list(hl)
+        cl = list(cl)
+        if self.highway_concat > 0:
+            ones = Variable(torch.ones(2, hl[-1].size(1), 1).type_as(hl[-1].data) * (1 if is_input_audio else 0))
+            hl[-1] = torch.cat([hl[-1], ones], dim=2)
+            cl[-1] = torch.cat([cl[-1], ones], dim=2)
+        #for ht in hl:
+        #    print('hidden sizes', ht.shape)
+        #for ct in cl:
+        #    print('cell sizes', ct.shape)
         hidden_t = torch.cat(hl, dim=0)  
         cell_t = torch.cat(cl, dim=0)
         if not is_input_audio and self.rep > 1:
             hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
-        #print('done', is_input_audio)
+        print('done', is_input_audio, outputs.shape, 'outputs size')
         return (hidden_t, cell_t), outputs
 
 
