@@ -233,6 +233,7 @@ class HybridDualEncoder(RNNEncoder):
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
+      self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
       self.add_noise = add_noise
       self.num_audio_layers = num_audio_layers
       self.num_aug_layers = num_aug_layers
