@@ -234,7 +234,7 @@ class HybridDualEncoder(RNNEncoder):
       self.num_concat_flags = num_concat_flags 
       self.highway_concat = highway_concat
       self.add_noise = add_noise
-      self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
+      self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags) #NEEDED FOR DECODER.. not used in forward
       self.num_audio_layers = num_audio_layers
       self.num_aug_layers = num_aug_layers
       self.do_subsample = do_subsample
@@ -253,7 +253,7 @@ class HybridDualEncoder(RNNEncoder):
       for i in range(num_audio_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else audio_vec_size, #embeddings.embedding_size, 
-                    hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
+                    hidden_size= (hidden_size - 1) if i == (len(num_audio_layers) - 1) and self.highway_concat == 1 else hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
@@ -269,7 +269,7 @@ class HybridDualEncoder(RNNEncoder):
       for i in range(num_aug_layers):
           rnn = getattr(nn, rnn_type)(
                     input_size= (hidden_size * num_directions) if i > 0 else self.embeddings.embedding_size,
-                    hidden_size=hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
+                    hidden_size= (hidden_size - 1) if i == (len(num_aug_layers) - 1) and self.highway_concat == 1 else hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
                     num_layers=1,
                     dropout=dropout,
                     bidirectional=bidirectional)
@@ -333,13 +333,12 @@ class HybridDualEncoder(RNNEncoder):
             outputs, lengths = unpack(outputs)
 
         if self.num_concat_flags > 0 and self.highway_concat > 0:
-            outputs = self.highway_linear(outputs) # (seq_len, batch_size, hidden_size - num_concat_flags)
+            #outputs = self.highway_linear(outputs) # (seq_len, batch_size, hidden_size - num_concat_flags)
             assert input_flag.size(0) == self.num_concat_flags
             concat_flag = input_flag.transpose(0,1) #(b,f)
             concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
             concat_flag = concat_flag.expand(outputs.size(0), concat_flag.size(1), concat_flag.size(2))
             outputs = torch.cat([outputs, concat_flag.float()], dim=2)  # (seq_len, batch_size, hidden_size)
-            #print('added highway concat')
         else:
             pass       
 
