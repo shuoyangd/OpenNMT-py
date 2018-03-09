@@ -360,7 +360,11 @@ class HybridDualEncoder(RNNEncoder):
         if not is_input_audio and self.rep > 1:
             hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
+<<<<<<< HEAD
         #print('done', is_input_audio, outputs.shape, 'outputs size')
+=======
+        print('done', is_input_audio, outputs.shape, 'outputs size')
+>>>>>>> bb19a0ca00bd61371af03f299d4650c3a6dd5b2b
         return (hidden_t, cell_t), outputs
 
 
