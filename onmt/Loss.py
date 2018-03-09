@@ -150,7 +150,7 @@ class ASRLossCompute(LossComputeBase):
         shard_state = self.make_shard_state(batch, output, range_, attns)
         for shard in shards(shard_state, shard_size):
             loss, stats = self.compute_loss(batch, **shard)
-            if np.any(np.isnan(loss.data.numpy())):
+            if np.any(np.isnan(loss.data.cpu().numpy())):
                 print('skipping nan loss')
             else:
                 loss.div(batch[0].size(1)).backward()
