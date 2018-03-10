@@ -10,7 +10,7 @@ if __name__ == '__main__':
     ref_formated = open(options.ref + '.formatted', 'w')
     for ref_line in open(options.ref, 'r').readlines(): 
         idx, _ref_line = ref_line.strip().split(None, 1)
-        if options.data_type == 'wsjchar':
+        if options.data_type == 'wsjchars':
             spkr_idx = '(' + idx[:3] + '-'  + idx + ')'
         elif options.data_type == 'chime4':
             spkr, u_id, noise, real = idx.split('_')
