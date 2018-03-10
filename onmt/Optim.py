@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm
+import math
 
 
 class Optim(object):
@@ -50,15 +51,15 @@ class Optim(object):
                 (self.opt.rnn_size ** (-0.5) *
                  min(self._step ** (-0.5),
                      self._step * self.opt.warmup_steps**(-1.5))))
-
-        if self.max_grad_norm > 0:
-            clip_grad_norm(self.params, self.max_grad_norm)
-
-        if self.grad_clip > 0:
-            for param in filter(lambda x: x.grad is not None, self.params):
-              param.grad.data = torch.clamp(param.grad.data, -self.grad_clip, self.grad_clip)
-
-        self.optimizer.step()
+        
+        current_grad_norm = clip_grad_norm(self.params, self.max_grad_norm)
+        #if self.grad_clip > 0:
+        #    for param in filter(lambda x: x.grad is not None, self.params):
+        #      param.grad.data = torch.clamp(param.grad.data, -self.grad_clip, self.grad_clip)
+        if math.isnan(current_grad_norm):
+            print('skipping grad step, grad_norm is nan!')
+        else:
+            self.optimizer.step()
 
     def updateLearningRate(self, ppl, epoch):
         """

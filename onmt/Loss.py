@@ -125,6 +125,7 @@ class ASRLossCompute(LossComputeBase):
         target_data = target.data.clone()
         loss = self.criterion(scores, target)
         loss_data = loss.data.clone()
+        print(loss_data)
 
         stats = self.stats(loss_data, scores_data, target_data)
 
@@ -150,11 +151,8 @@ class ASRLossCompute(LossComputeBase):
         shard_state = self.make_shard_state(batch, output, range_, attns)
         for shard in shards(shard_state, shard_size):
             loss, stats = self.compute_loss(batch, **shard)
-            if np.any(np.isnan(loss.data.numpy())):
-                print('skipping nan loss')
-            else:
-                loss.div(batch[0].size(1)).backward()
-                batch_stats.update(stats)
+            loss.div(batch[0].size(1)).backward()
+            batch_stats.update(stats)
             #del loss
         return batch_stats
 
