@@ -125,7 +125,6 @@ class ASRLossCompute(LossComputeBase):
         target_data = target.data.clone()
         loss = self.criterion(scores, target)
         loss_data = loss.data.clone()
-        print(loss_data)
 
         stats = self.stats(loss_data, scores_data, target_data)
 
