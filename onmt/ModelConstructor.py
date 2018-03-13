@@ -8,7 +8,7 @@ import onmt.Models
 import onmt.modules
 from onmt.IO import ONMTDataset
 from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
-                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, HybridEncoder, HybridDualEncoder
+                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, HybridDualEncoder, HybridDualEncoderProjection
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder
@@ -66,12 +66,16 @@ def make_encoder(opt, embeddings):
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)
     elif opt.encoder_type == "hybrid":
-        return HybridEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
-                             opt.rnn_size, opt.dropout, embeddings, 
-                             opt.num_concat_flags, opt.add_noise, opt.use_highway_concat, 
-                             opt.do_subsample, opt.do_weight_norm, opt.gpuid)
+        raise BaseException("hybrid encoder removed... use hybrid_dual instead")
     elif opt.encoder_type == "hybrid_dual":
         return HybridDualEncoder(opt.rnn_type, opt.brnn, 
+                             opt.enc_layers, opt.aug_enc_layers,
+                             opt.rnn_size, opt.dropout, embeddings, opt.audio_feat_size,
+                             opt.num_concat_flags, opt.add_noise, 
+                             opt.use_highway_concat, 
+                             opt.do_subsample, opt.do_weight_norm, opt.gpuid)
+    elif opt.encoder_type == "hybrid_dual_proj":
+        return HybridDualEncoderProjection(opt.rnn_type, opt.brnn, 
                              opt.enc_layers, opt.aug_enc_layers,
                              opt.rnn_size, opt.dropout, embeddings, opt.audio_feat_size,
                              opt.num_concat_flags, opt.add_noise, 
@@ -100,17 +104,7 @@ def make_decoder(opt, embeddings):
                           opt.cnn_kernel_width, opt.dropout,
                           embeddings)
     elif opt.decoder_type == "hybrid":
-        print("making input feed decoder WITH FLAGS!")
-        return InputFeedRNNDecoderWithFlags(opt.rnn_type, opt.brnn,
-                                   opt.dec_layers, opt.rnn_size,
-                                   opt.global_attention,
-                                   opt.coverage_attn,
-                                   opt.context_gate,
-                                   opt.copy_attn,
-                                   opt.dropout,
-                                   embeddings,
-                                   opt.num_concat_flags,
-                                   opt.use_highway_concat)
+        raise BaseException("hybrid encoder removed... use hybrid_dual instead")
     elif opt.input_feed:
         print("making input feed decoder")
         #assert min(opt.aug_enc_layers, opt.enc_layers) >= opt.dec_layers
