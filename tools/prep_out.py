@@ -20,6 +20,9 @@ if __name__ == '__main__':
             spkr, u_id, noise, real = idx.split('_')
             #spkr_idx = '(' + noise + real + '-'  + idx + ')'
             spkr_idx = '(' + idx[:3] + '-'  + idx + ')'
+        elif options.data_type == 'st':
+            file_id,caller_AB,duration = idx.split('-')
+            spkr_idx = '(' + file_id + caller_AB + '-' + file_id+caller_AB+duration + ')'
         else:
             raise BaseException("unknown data_type")
         out_formated.write(_out_line + ' ' + spkr_idx + '\n')
