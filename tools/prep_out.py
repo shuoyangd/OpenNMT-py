@@ -18,7 +18,8 @@ if __name__ == '__main__':
             spkr_idx = '(' + idx[:3] + '-'  + idx + ')'
         elif options.data_type == 'chime4':
             spkr, u_id, noise, real = idx.split('_')
-            spkr_idx = '(' + noise + real + '-'  + idx + ')'
+            #spkr_idx = '(' + noise + real + '-'  + idx + ')'
+            spkr_idx = '(' + idx[:3] + '-'  + idx + ')'
         else:
             raise BaseException("unknown data_type")
         out_formated.write(_out_line + ' ' + spkr_idx + '\n')
