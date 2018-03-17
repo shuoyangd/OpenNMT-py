@@ -105,7 +105,7 @@ class HybridDualEncoderProjection(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_audio_layers, num_aug_layers,
                  hidden_size, dropout, embeddings, audio_vec_size,
                  num_concat_flags, add_noise, highway_concat, 
-                 do_subsample, do_weight_norm, use_gpu):
+                 do_subsample, do_weight_norm, use_gpu, size_force=1):
       super(HybridDualEncoderProjection, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
@@ -118,6 +118,7 @@ class HybridDualEncoderProjection(RNNEncoder):
       self.do_weight_norm = do_weight_norm
       self.use_proj = True #probably want to make this a arg to pass at cmd line
       self.use_gpu = use_gpu
+      self.size_force = size_force
       assert self.num_aug_layers <= self.num_audio_layers
       assert self.num_audio_layers % self.num_aug_layers == 0
       self.rep = self.num_audio_layers // self.num_aug_layers
@@ -125,6 +126,8 @@ class HybridDualEncoderProjection(RNNEncoder):
       num_directions = 2 if bidirectional else 1
       assert hidden_size % num_directions == 0
       hidden_size = hidden_size // num_directions
+
+      self.init_state_projection = nn.Linear(hidden_size, hidden_size // num_directions)
 
       audio_rnn_list = []
       audio_projection_list = []
@@ -141,7 +144,10 @@ class HybridDualEncoderProjection(RNNEncoder):
           if i < (num_audio_layers - 1) and self.use_proj:
               projection = nn.Linear(hidden_size * num_directions, hidden_size)
           else: 
-              projection = None  # we are not applying projection on the last rnn
+              if self.size_force  == 2:
+                  projection = nn.Linear(hidden_size * num_directions, hidden_size)
+              else:
+                  projection = None  # we are not applying projection on the last rnn
           audio_projection_list.append(projection)
 
       self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
@@ -157,7 +163,10 @@ class HybridDualEncoderProjection(RNNEncoder):
                     dropout=dropout,
                     bidirectional=bidirectional)
           aug_rnn_list.append(rnn)
-          projection = None # we dont need projection for aug, this is dummy but makes forword code cleaner
+          if size_force == 2:
+              projection = nn.Linear(hidden_size * num_directions, hidden_size)
+          else:
+              projection = None # we dont need projection for aug, this is dummy but makes forword code cleaner
           aug_projection_list.append(projection)
 
       self.aug_rnn_list = nn.ModuleList(aug_rnn_list)
@@ -257,7 +266,11 @@ class HybridDualEncoderProjection(RNNEncoder):
         if not is_input_audio and self.rep > 1:
             hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
-        #print('done', is_input_audio, outputs.shape, 'outputs size')
+        if self.size_force == 2:
+            #instead of using a fake initial state, we project the hidden_t to smaller size
+            hidden_t = self.init_state_projection(hidden_t) 
+            cell_t = self.init_state_projection(cell_t)
+        print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
         return (hidden_t, cell_t), outputs
 
 

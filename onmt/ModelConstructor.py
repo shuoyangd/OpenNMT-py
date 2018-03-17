@@ -80,7 +80,7 @@ def make_encoder(opt, embeddings):
                              opt.rnn_size, opt.dropout, embeddings, opt.audio_feat_size,
                              opt.num_concat_flags, opt.add_noise, 
                              opt.use_highway_concat, 
-                             opt.do_subsample, opt.do_weight_norm, opt.gpuid)
+                             opt.do_subsample, opt.do_weight_norm, opt.gpuid, opt.size_force)
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
@@ -109,7 +109,7 @@ def make_decoder(opt, embeddings):
         print("making input feed decoder")
         #assert min(opt.aug_enc_layers, opt.enc_layers) >= opt.dec_layers
         return InputFeedRNNDecoder(opt.rnn_type, opt.brnn,
-                                   opt.dec_layers, opt.rnn_size,
+                                   opt.dec_layers, opt.rnn_size // opt.size_force,
                                    opt.global_attention,
                                    opt.coverage_attn,
                                    opt.context_gate,
@@ -118,7 +118,7 @@ def make_decoder(opt, embeddings):
                                    embeddings)
     else:
         return StdRNNDecoder(opt.rnn_type, opt.brnn,
-                             opt.dec_layers, opt.rnn_size,
+                             opt.dec_layers, opt.rnn_size // opt.size_force,
                              opt.global_attention,
                              opt.coverage_attn,
                              opt.context_gate,
@@ -173,7 +173,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     # Make Generator.
     if not model_opt.copy_attn:
         generator = nn.Sequential(
-            nn.Linear(model_opt.rnn_size, len(fields["tgt"].vocab)),
+            nn.Linear(model_opt.rnn_size // model_opt.size_force, len(fields["tgt"].vocab)),
             nn.LogSoftmax())
         if model_opt.share_decoder_embeddings:
             generator[0].weight = decoder.embeddings.word_lut.weight
