@@ -8,7 +8,8 @@ import onmt.Models
 import onmt.modules
 from onmt.IO import ONMTDataset
 from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
-                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, HybridDualEncoder, HybridDualEncoderProjection
+                        StdRNNDecoder, InputFeedRNNDecoder, InputFeedRNNDecoderWithFlags, \
+                        HybridDualEncoder, HybridDualEncoderProjection, HybridDualEncoderProjectionSizeForce
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder
@@ -80,7 +81,14 @@ def make_encoder(opt, embeddings):
                              opt.rnn_size, opt.dropout, embeddings, opt.audio_feat_size,
                              opt.num_concat_flags, opt.add_noise, 
                              opt.use_highway_concat, 
-                             opt.do_subsample, opt.do_weight_norm, opt.gpuid, opt.size_force)
+                             opt.do_subsample, opt.do_weight_norm, opt.gpuid)
+    elif opt.encoder_type == "hybrid_dual_proj_size_force":
+        return HybridDualEncoderProjectionSizeForce(opt.rnn_type, opt.brnn, 
+                             opt.enc_layers, opt.aug_enc_layers,
+                             opt.rnn_size, opt.dropout, embeddings, opt.audio_feat_size,
+                             opt.num_concat_flags, opt.add_noise, 
+                             opt.use_highway_concat, 
+                             opt.do_subsample, opt.do_weight_norm, opt.gpuid)
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
@@ -108,8 +116,9 @@ def make_decoder(opt, embeddings):
     elif opt.input_feed:
         print("making input feed decoder")
         #assert min(opt.aug_enc_layers, opt.enc_layers) >= opt.dec_layers
+        sf = 2 if opt.encoder_type == 'hybrid_dual_proj_size_force' else 1
         return InputFeedRNNDecoder(opt.rnn_type, opt.brnn,
-                                   opt.dec_layers, opt.rnn_size // opt.size_force,
+                                   opt.dec_layers, opt.rnn_size // sf,
                                    opt.global_attention,
                                    opt.coverage_attn,
                                    opt.context_gate,
@@ -117,8 +126,9 @@ def make_decoder(opt, embeddings):
                                    opt.dropout,
                                    embeddings)
     else:
+        sf = 2 if opt.encoder_type == 'hybrid_dual_proj_size_force' else 1
         return StdRNNDecoder(opt.rnn_type, opt.brnn,
-                             opt.dec_layers, opt.rnn_size // opt.size_force,
+                             opt.dec_layers, opt.rnn_size // sf,
                              opt.global_attention,
                              opt.coverage_attn,
                              opt.context_gate,
@@ -172,8 +182,9 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
 
     # Make Generator.
     if not model_opt.copy_attn:
+        sf = 2 if model_opt.encoder_type == 'hybrid_dual_proj_size_force' else 1
         generator = nn.Sequential(
-            nn.Linear(model_opt.rnn_size // model_opt.size_force, len(fields["tgt"].vocab)),
+            nn.Linear(model_opt.rnn_size // sf, len(fields["tgt"].vocab)),
             nn.LogSoftmax())
         if model_opt.share_decoder_embeddings:
             generator[0].weight = decoder.embeddings.word_lut.weight

@@ -15,7 +15,7 @@ try:
 except ImportError:
     from itertools import izip_longest as zip_longest
 
-from onmt.Models import HybridDualEncoderProjection, HybridDualEncoder
+from onmt.Models import HybridDualEncoderProjection, HybridDualEncoder, HybridDualEncoderProjectionSizeForce
 import onmt.modules.HybridOrderedIterator
 parser = argparse.ArgumentParser(description='translate.py')
 opts.add_md_help_argument(parser)
@@ -63,7 +63,8 @@ def main():
     for line in open(opt.src):
         num_audio_instances += 1
     if isinstance(translator.model.encoder, HybridDualEncoderProjection) or \
-            isinstance(translator.model.encoder, HybridDualEncoder):
+            isinstance(translator.model.encoder, HybridDualEncoder) or \
+            isinstance(translator.model.encoder, HybridDualEncoderProjectionSizeForce):
         data_names = [ str(i) for i in range(translator.model.encoder.num_concat_flags - 1) ]  # pseudo augmenting data names
         test_data = onmt.modules.HybridOrderedIterator(
            train_mode = False, 

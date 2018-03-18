@@ -40,10 +40,8 @@ def model_opts(parser):
                          and decoder.""")
 
     # RNN Options
-    parser.add_argument('-size_force', type=int, default=1, choices=[1,2], 
-                        help="""Enable or Disable rnn_size forcing between enc and dec""")
     parser.add_argument('-encoder_type', type=str, default='rnn',
-                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid', 'hybrid_dual', 'hybrid_dual_proj'],
+                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'hybrid', 'hybrid_dual', 'hybrid_dual_proj', 'hybrid_dual_proj_size_force'],
                         help="""Type of encoder layer to use.""")
     parser.add_argument('-decoder_type', type=str, default='rnn',
                         choices=['rnn', 'transformer', 'cnn', 'hybrid'],
