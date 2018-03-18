@@ -257,10 +257,6 @@ class HybridDualEncoderProjection(RNNEncoder):
         if not is_input_audio and self.rep > 1:
             hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
-        if self.size_force == 2:
-            #instead of using a fake initial state, we project the hidden_t to smaller size
-            hidden_t = self.init_state_projection(hidden_t) 
-            cell_t = self.init_state_projection(cell_t)
         # print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
         return (hidden_t, cell_t), outputs
 
