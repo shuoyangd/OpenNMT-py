@@ -268,9 +268,10 @@ class HybridDualEncoderProjection(RNNEncoder):
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
         if self.size_force == 2:
             #instead of using a fake initial state, we project the hidden_t to smaller size
+            pdb.set_trace()
             hidden_t = self.init_state_projection(hidden_t) 
             cell_t = self.init_state_projection(cell_t)
-        print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
+        # print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
         return (hidden_t, cell_t), outputs
 
 
@@ -746,6 +747,7 @@ class NMTModel(nn.Module):
         src = src
         tgt = tgt[:-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src, lengths)
+        enc_hidden = tuple([enc_hidden[0][-2 * self.decoder.num_layers:], enc_hidden[1][-2 * self.decoder.num_layers:]])
         enc_state = self.decoder.init_decoder_state(src, context, enc_hidden)
         out, dec_state, attns = self.decoder(tgt, context,
                                              enc_state if dec_state is None
