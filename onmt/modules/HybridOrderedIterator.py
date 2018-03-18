@@ -7,8 +7,8 @@ from collections import namedtuple
 
 ExInstance = namedtuple('ExInstance', 'src is_audio flags src_length tgt_length tgt')
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab,  augmenting_data_names, init_mix_factor, end_mix_factor,
-            num_aug_instances, num_audio_instances, num_epochs, device):
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab, reset_aug_iter, 
+                 init_mix_factor, end_mix_factor, num_aug_instances, num_audio_instances, num_epochs, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
       self.num_epochs = num_epochs
@@ -19,6 +19,7 @@ class HybridOrderedIterator:
       self.audio_tgt_reader = None
       self.tgt_vocab = tgt_vocab #torch.load(vocab_file)[1][1]
       #self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
+      self.reset_aug_iter = reset_aug_iter
       self.flags_size = 2 #len(augmenting_data_names) + 1
       self.mix_factor = init_mix_factor
       self.end_mix_factor = end_mix_factor
@@ -37,6 +38,8 @@ class HybridOrderedIterator:
           self.mix_factor = 0.0
           self.num_aug_instances = 0 #num_aug_instances
       self.epoch_counter = 0
+      self.aug_src_reader = None
+      self.aug_tgt_reader = None
 
     def init_audio_reader(self,):
        print('initializing audio reader.. train_mode:', self.train_mode) 
@@ -59,7 +62,13 @@ class HybridOrderedIterator:
            self.mix_factor = self.mix_factor if self.mix_factor > self.end_mix_factor else self.end_mix_factor
            print('creating batch epoch:%d mix_factor:%.4f' %(self.epoch_counter, self.mix_factor))
            if self.use_aug:
-               self.init_aug_reader()
+               if not self.aug_src_reader or not self.aug_tgt_reader:
+                 self.init_aug_reader()
+               elif self.reset_aug_iter:
+                 self.init_aug_reader()
+               else:
+                 pass
+
                mf = self.mix_factor
            else:
                mf = 0.0
