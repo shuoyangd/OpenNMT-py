@@ -105,7 +105,7 @@ class HybridDualEncoderProjection(RNNEncoder):
     def __init__(self, rnn_type, bidirectional, num_audio_layers, num_aug_layers,
                  hidden_size, dropout, embeddings, audio_vec_size,
                  num_concat_flags, add_noise, highway_concat, 
-                 do_subsample, do_weight_norm, use_gpu, size_force=1):
+                 do_subsample, do_weight_norm, use_gpu):
       super(HybridDualEncoderProjection, self).__init__(rnn_type, bidirectional, 1,
                                           hidden_size, dropout, embeddings)
       self.num_concat_flags = num_concat_flags 
@@ -118,7 +118,6 @@ class HybridDualEncoderProjection(RNNEncoder):
       self.do_weight_norm = do_weight_norm
       self.use_proj = True #probably want to make this a arg to pass at cmd line
       self.use_gpu = use_gpu
-      self.size_force = size_force
       assert self.num_aug_layers <= self.num_audio_layers
       assert self.num_audio_layers % self.num_aug_layers == 0
       self.rep = self.num_audio_layers // self.num_aug_layers
@@ -126,8 +125,6 @@ class HybridDualEncoderProjection(RNNEncoder):
       num_directions = 2 if bidirectional else 1
       assert hidden_size % num_directions == 0
       hidden_size = hidden_size // num_directions
-
-      self.init_state_projection = nn.Linear(hidden_size, hidden_size // num_directions)
 
       audio_rnn_list = []
       audio_projection_list = []
@@ -144,10 +141,7 @@ class HybridDualEncoderProjection(RNNEncoder):
           if i < (num_audio_layers - 1) and self.use_proj:
               projection = nn.Linear(hidden_size * num_directions, hidden_size)
           else: 
-              if self.size_force  == 2:
-                  projection = nn.Linear(hidden_size * num_directions, hidden_size)
-              else:
-                  projection = None  # we are not applying projection on the last rnn
+              projection = None  # we are not applying projection on the last rnn
           audio_projection_list.append(projection)
 
       self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
@@ -163,10 +157,7 @@ class HybridDualEncoderProjection(RNNEncoder):
                     dropout=dropout,
                     bidirectional=bidirectional)
           aug_rnn_list.append(rnn)
-          if size_force == 2:
-              projection = nn.Linear(hidden_size * num_directions, hidden_size)
-          else:
-              projection = None # we dont need projection for aug, this is dummy but makes forword code cleaner
+          projection = None # we dont need projection for aug, this is dummy but makes forword code cleaner
           aug_projection_list.append(projection)
 
       self.aug_rnn_list = nn.ModuleList(aug_rnn_list)
@@ -266,12 +257,174 @@ class HybridDualEncoderProjection(RNNEncoder):
         if not is_input_audio and self.rep > 1:
             hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
-        if self.size_force == 2:
-            #instead of using a fake initial state, we project the hidden_t to smaller size
-            hidden_t = self.init_state_projection(hidden_t) 
-            cell_t = self.init_state_projection(cell_t)
-        print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
+        #print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
         return (hidden_t, cell_t), outputs
+
+
+class HybridDualEncoderProjectionSizeForce(RNNEncoder):
+    def __init__(self, rnn_type, bidirectional, num_audio_layers, num_aug_layers,
+                 hidden_size, dropout, embeddings, audio_vec_size,
+                 num_concat_flags, add_noise, highway_concat, 
+                 do_subsample, do_weight_norm, use_gpu):
+      super(HybridDualEncoderProjectionSizeForce, self).__init__(rnn_type, bidirectional, 1,
+                                          hidden_size, dropout, embeddings)
+      self.num_concat_flags = num_concat_flags 
+      self.highway_concat = highway_concat
+      self.highway_linear = nn.Linear(hidden_size, hidden_size - num_concat_flags)
+      self.add_noise = add_noise
+      self.num_audio_layers = num_audio_layers
+      self.num_aug_layers = num_aug_layers
+      self.do_subsample = do_subsample
+      self.do_weight_norm = do_weight_norm
+      self.use_proj = True #probably want to make this a arg to pass at cmd line
+      self.use_gpu = use_gpu
+      assert self.num_aug_layers <= self.num_audio_layers
+      assert self.num_audio_layers % self.num_aug_layers == 0
+      self.rep = self.num_audio_layers // self.num_aug_layers
+
+      num_directions = 2 if bidirectional else 1
+      assert hidden_size % num_directions == 0
+      hidden_size = hidden_size // num_directions
+
+      self.init_state_projection = nn.Linear(hidden_size, hidden_size // num_directions)
+
+      audio_rnn_list = []
+      audio_projection_list = []
+      self.rnn = None
+      for i in range(num_audio_layers):
+          rnn = getattr(nn, rnn_type)(
+                    input_size= (hidden_size * (1 if self.use_proj else num_directions)) if i > 0 else audio_vec_size, #embeddings.embedding_size, 
+                    hidden_size= (hidden_size - 1) if i == (num_audio_layers - 1) and self.highway_concat == 1 else hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
+                    num_layers=1,
+                    dropout=dropout,
+                    bidirectional=bidirectional)
+          audio_rnn_list.append(rnn)
+          #projection
+          if i < (num_audio_layers - 1) and self.use_proj:
+              projection = nn.Linear(hidden_size * num_directions, hidden_size)
+          else: 
+              projection = nn.Linear(hidden_size * num_directions, hidden_size)
+          audio_projection_list.append(projection)
+
+      self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
+      self.audio_projection_list = nn.ModuleList(audio_projection_list)
+
+      aug_rnn_list = []
+      aug_projection_list = []
+      for i in range(num_aug_layers):
+          rnn = getattr(nn, rnn_type)(
+                    input_size= (hidden_size * num_directions) if i > 0 else self.embeddings.embedding_size,
+                    hidden_size= (hidden_size - 1) if i == (num_aug_layers - 1) and self.highway_concat == 1 else hidden_size, #if i < (num_layers - 1) else (hidden_size + (num_concat_flags * use_highway_concat)),
+                    num_layers=1,
+                    dropout=dropout,
+                    bidirectional=bidirectional)
+          aug_rnn_list.append(rnn)
+          projection = nn.Linear(hidden_size * num_directions, hidden_size)
+          aug_projection_list.append(projection)
+
+      self.aug_rnn_list = nn.ModuleList(aug_rnn_list)
+      self.aug_projection_list = nn.ModuleList(aug_projection_list)
+
+    def _check_args(self, input, lengths=None, hidden=None):
+        input, is_input_audio, input_flag = input
+        s_len, batch, emb_dim = input.size()
+        assert isinstance(is_input_audio ,bool)
+        # TODO: check with lengths
+        # print(input_flag.size())
+        # print(input_audio.size())
+        assert input_flag.size() == (self.num_concat_flags, batch) 
+        if lengths is not None:
+            assert s_len == lengths[0]
+            #print(s_len, 'sent len', batch, 'batch len', is_input_audio, 'is_audio')
+        assert input.size() == (s_len, batch, emb_dim)
+
+    def subsample(self, outputs, lengths):
+        if lengths is not None and not self.no_pack_padded_seq:
+            outputs, lengths = unpack(outputs)
+        outputs = outputs[::2]
+        lengths = [(l + 1) // 2 for l in lengths]
+        outputs = pack(outputs, lengths)
+        return outputs, lengths
+    
+    def forward(self, input, lengths=None, hidden=None):
+        """ See EncoderBase.forward() for description of args and returns."""
+        self._check_args(input, lengths, hidden)
+        input, is_input_audio, input_flag = input 
+        #print('start batch', is_input_audio)
+        if is_input_audio:
+            emb = input #(seq_len, batch_size, feats)
+        else:
+            emb = self.embeddings(input) #(seq_len, batch_size) --> (seq_len, batch_size, feats)
+            if self.add_noise:
+                n = torch.randn(1, emb.size(1), emb.size(2)).type_as(emb.data)
+                n = Variable(n, requires_grad=False) 
+                emb += n
+                #print('added noise')
+
+        if lengths is not None and not self.no_pack_padded_seq:
+            # Lengths data is wrapped inside a Variable.
+            lengths = lengths.view(-1).tolist()
+            packed_emb = pack(emb, lengths)
+
+        outputs = packed_emb
+        hidden_t = []
+        rnn_list = self.audio_rnn_list if is_input_audio else self.aug_rnn_list
+        proj_list = self.audio_projection_list if is_input_audio else self.aug_projection_list
+        for idx, (rnn,proj) in enumerate(zip(rnn_list, proj_list)):
+            #print('rnn', idx, 'is_input_audio', is_input_audio)
+            #print('using rnn', rnn)
+            outputs, (h_t, c_t) = rnn(outputs, hidden)
+            hidden_t.append((h_t, c_t))
+
+            if self.use_proj and proj is not None:
+                outputs, lengths = unpack(outputs)
+                outputs = proj(outputs)
+                outputs = pack(outputs, lengths)
+            else:
+                pass
+
+            if idx < 2 and self.do_subsample == 1 and is_input_audio:
+                outputs, lengths = self.subsample(outputs, lengths)
+            else:
+                pass # do not sample further
+
+        if lengths is not None and not self.no_pack_padded_seq:
+            outputs, lengths = unpack(outputs)
+
+        if self.num_concat_flags > 0 and self.highway_concat > 0:
+            #print(outputs.shape, 'is the output shape hw start')
+            assert input_flag.size(0) == self.num_concat_flags
+            concat_flag = input_flag.transpose(0,1) #(b,f)
+            concat_flag = concat_flag.unsqueeze(0) #(1, b , f)
+            concat_flag = concat_flag.expand(outputs.size(0), concat_flag.size(1), concat_flag.size(2))
+            outputs = torch.cat([outputs, concat_flag.float()], dim=2)  # (seq_len, batch_size, hidden_size)
+            #print(outputs.shape, ' is the output shape hw done')
+        else:
+            pass       
+
+        #print(outputs.shape, 'is the output shape')
+        hl, cl = zip(*hidden_t)
+        hl = list(hl)
+        cl = list(cl)
+        if self.highway_concat > 0:
+            ones = Variable(torch.ones(2, hl[-1].size(1), 1).type_as(hl[-1].data) * (1 if is_input_audio else 0))
+            hl[-1] = torch.cat([hl[-1], ones], dim=2)
+            cl[-1] = torch.cat([cl[-1], ones], dim=2)
+        #for ht in hl:
+        #    print('hidden sizes', ht.shape)
+        #for ct in cl:
+        #    print('cell sizes', ct.shape)
+        hidden_t = torch.cat(hl, dim=0)  
+        cell_t = torch.cat(cl, dim=0)
+        if not is_input_audio and self.rep > 1:
+            hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
+            cell_t = torch.cat([cell_t] * self.rep, dim = 0)
+        #instead of using a fake initial state, we project the hidden_t to smaller size
+        hidden_t = self.init_state_projection(hidden_t) 
+        cell_t = self.init_state_projection(cell_t)
+        #print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
+        return (hidden_t, cell_t), outputs
+
 
 
 class HybridDualEncoder(RNNEncoder):
