@@ -257,7 +257,7 @@ class HybridDualEncoderProjection(RNNEncoder):
         if not is_input_audio and self.rep > 1:
             hidden_t = torch.cat([hidden_t] * self.rep, dim = 0)
             cell_t = torch.cat([cell_t] * self.rep, dim = 0)
-        #print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
+        #print("project encoder: done forward", outputs.shape, hidden_t.shape, cell_t.shape)
         return (hidden_t, cell_t), outputs
 
 
@@ -300,10 +300,7 @@ class HybridDualEncoderProjectionSizeForce(RNNEncoder):
                     bidirectional=bidirectional)
           audio_rnn_list.append(rnn)
           #projection
-          if i < (num_audio_layers - 1) and self.use_proj:
-              projection = nn.Linear(hidden_size * num_directions, hidden_size)
-          else: 
-              projection = nn.Linear(hidden_size * num_directions, hidden_size)
+          projection = nn.Linear(hidden_size * num_directions, hidden_size)
           audio_projection_list.append(projection)
 
       self.audio_rnn_list = nn.ModuleList(audio_rnn_list)
@@ -422,7 +419,7 @@ class HybridDualEncoderProjectionSizeForce(RNNEncoder):
         #instead of using a fake initial state, we project the hidden_t to smaller size
         hidden_t = self.init_state_projection(hidden_t) 
         cell_t = self.init_state_projection(cell_t)
-        #print("done forward", outputs.shape, hidden_t.shape, cell_t.shape)
+        #print("size force encoder: done forward", outputs.shape, hidden_t.shape, cell_t.shape)
         return (hidden_t, cell_t), outputs
 
 
@@ -899,6 +896,7 @@ class NMTModel(nn.Module):
         src = src
         tgt = tgt[:-1]  # exclude last target from inputs
         enc_hidden, context = self.encoder(src, lengths)
+        enc_hidden = tuple([enc_hidden[0][-2 * self.decoder.num_layers:], enc_hidden[1][-2 * self.decoder.num_layers:]])
         enc_state = self.decoder.init_decoder_state(src, context, enc_hidden)
         out, dec_state, attns = self.decoder(tgt, context,
                                              enc_state if dec_state is None
