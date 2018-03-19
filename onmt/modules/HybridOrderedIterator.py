@@ -128,10 +128,10 @@ class HybridOrderedIterator:
             src_length = src.size(0)
         else:
             src = ["<s>"] + src.split() + ["</s>"]
-            src = torch.LongTensor([self.aug_src_vocab.stoi[tok] for tok in src]).unsqueeze(1).unsqueeze(2) #(seg_len, 1, 1)
+            src = torch.LongTensor([(self.aug_src_vocab.stoi[tok] if (tok in self.aug_src_vocab.stoi) else 0) for tok in src]).unsqueeze(1).unsqueeze(2) #(seg_len, 1, 1)
             aug_name, tgt = tgt.strip().split(None, 1)
             tgt = ["<s>"] + tgt.split() + ["</s>"]
-            tgt = torch.LongTensor([self.tgt_vocab.stoi[tok] for tok in tgt]).unsqueeze(1)
+            tgt = torch.LongTensor([(self.tgt_vocab.stoi[tok] if (tok in self.tgt_vocab.stoi) else 0)for tok in tgt]).unsqueeze(1)
             flags[1] = 1
             flags = flags.unsqueeze(1)
             src_length = src.size(0)

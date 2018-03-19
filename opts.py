@@ -119,7 +119,7 @@ def model_opts(parser):
                         help='mix factor training instance will be asr is rand > mix factor')
     parser.add_argument('-end_mix_factor', type=float, default=0.2,
                         help='')
-    parser.add_argument('-reset_aug_iter', type=int, default=1,
+    parser.add_argument('-reset_aug_iter', type=int, default=1, choices=set([1,0]),
                         help="Reset the augmenting data iterator at the beginning of every epoch. Otherwise, only reset when augmenting data is exhausted. (default = 1)")
 
 def preprocess_opts(parser):
