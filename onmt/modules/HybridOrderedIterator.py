@@ -7,7 +7,7 @@ from collections import namedtuple
 
 ExInstance = namedtuple('ExInstance', 'src is_audio flags src_length tgt_length tgt')
 class HybridOrderedIterator:
-    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab, reset_aug_iter, 
+    def __init__(self, train_mode, batch_size, audio_file, augmenting_file, tgt_vocab, src_vocab, reset_aug_iter, is_rep_aug
                  init_mix_factor, end_mix_factor, num_aug_instances, num_audio_instances, num_epochs, device):
       self.train_mode = train_mode
       self.batch_size = batch_size
@@ -20,6 +20,7 @@ class HybridOrderedIterator:
       self.tgt_vocab = tgt_vocab #torch.load(vocab_file)[1][1]
       #self.aug_data_names = {name: (idx+1) for idx, name in enumerate(augmenting_data_names)}
       self.reset_aug_iter = reset_aug_iter
+      self.is_rep_aug = is_rep_aug
       self.flags_size = 2 #len(augmenting_data_names) + 1
       self.mix_factor = init_mix_factor
       self.end_mix_factor = end_mix_factor
@@ -169,8 +170,11 @@ class HybridOrderedIterator:
             max_len[0] = src_.size(0) if src_.size(0) > max_len[0] else max_len[0]
             max_len[1] = tgt_.size(0) if tgt_.size(0) > max_len[1] else max_len[1]
             if adapt_batch_size:
-                factor = max(int(max_len[0] / max_length_in), int(max_len[1] / max_length_out))
-                #factor = factor ** 1.2
+                if self.is_rep_aug and not is_audio_:
+                    mult_fac = 4
+                else:
+                    mult_fac = 1
+                factor = max(int((max_len[0] * mult_fac) / max_length_in), int(max_len[1] / max_length_out))
                 current_batch_limit = max(1, int(batch_size / (1 + factor)))
             else:
                 current_batch_limit = batch_size

@@ -73,6 +73,8 @@ def main():
            augmenting_file = None, 
            tgt_vocab = translator.fields['tgt'].vocab,
            src_vocab = translator.fields['src'].vocab,
+           reset_aug_iter = 0,
+           is_rep_aug = 0,
            augmenting_data_names = data_names,
            init_mix_factor = 0.0, #opt.mix_factor if opt.train_with_aug == 1 else 0.0,
            end_mix_factor = 0.0, #opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,

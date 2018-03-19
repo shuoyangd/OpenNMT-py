@@ -121,6 +121,8 @@ def model_opts(parser):
                         help='')
     parser.add_argument('-reset_aug_iter', type=int, default=1, choices=set([1,0]),
                         help="Reset the augmenting data iterator at the beginning of every epoch. Otherwise, only reset when augmenting data is exhausted. (default = 1)")
+    parser.add_argument('-is_rep_aug', type=int, default=0, choices=set([1,0]),
+                        help="set to 1 if the augmenting data is repeated type")
 
 def preprocess_opts(parser):
     # Dictionary Options

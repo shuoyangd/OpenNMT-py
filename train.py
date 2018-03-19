@@ -110,6 +110,7 @@ def make_hybrid_train_data_iter(train_data, opt, valid_data):
            src_vocab = train_data.fields['src'].vocab, #opt.data + ".vocab.pt",
            # augmenting_data_names = train_data.data_names, 
            reset_aug_iter = opt.reset_aug_iter,
+           is_rep_aug = opt.is_rep_aug,
            init_mix_factor = opt.mix_factor if opt.train_with_aug == 1 else 0.0,
            end_mix_factor = opt.end_mix_factor if opt.train_with_aug == 1 else 0.0,
            num_aug_instances = train_data.num_aug_instances,
