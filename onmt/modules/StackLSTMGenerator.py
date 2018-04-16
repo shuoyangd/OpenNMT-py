@@ -1,6 +1,5 @@
 from enum import Enum
 import logging
-import pdb
 import onmt.modules.utils.tensor
 
 import torch
@@ -10,7 +9,7 @@ from onmt.modules.StackLSTMCell import StackLSTMCell
 from onmt.modules.LSTMStateBufferCell import LSTMStateBufferCell
 # from lutra.model.MultiLayerLSTMCell import MultiLayerLSTMCell
 
-from onmt.Loss import LossComputeBase
+import pdb
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)s: %(message)s',
@@ -60,7 +59,7 @@ class StackLSTMGenerator(nn.Module):
     super(StackLSTMGenerator, self).__init__()
     self.stack_size = options.stack_size
     self.input_dim = options.stack_input_dim
-    self.hid_dim = options.stack_hid_dim
+    self.hid_dim = options.rnn_size
     self.transSys = TransitionSystems(options.transSys)
     self.num_lstm_layers = options.stack_lstm_layers
 
@@ -97,7 +96,7 @@ class StackLSTMGenerator(nn.Module):
       self.postag_emb = None
 
     # token embdding composition
-    token_comp_in_features = word_emb.size(1) # vocab only
+    token_comp_in_features = word_emb.weight.size(1) # vocab only
     if pre_vocab is not None:
       # token_comp_in_features += options.pre_word_emb_dim
       token_comp_in_features += pre_vocab.dim
@@ -112,18 +111,18 @@ class StackLSTMGenerator(nn.Module):
     # recurrent components
     # the only reason to have unified h0 and c0 is because pre_buffer and buffer should have the same initial states
     # but due to simplicity we just borrowed this for all three recurrent components (stack, buffer, action)
-    self.h0 = nn.Parameter(torch.rand(options.stack_hid_dim,).type(self.dtype))
-    self.c0 = nn.Parameter(torch.rand(options.stack_hid_dim,).type(self.dtype))
+    self.h0 = nn.Parameter(torch.rand(self.hid_dim,).type(self.dtype))
+    self.c0 = nn.Parameter(torch.rand(self.hid_dim,).type(self.dtype))
     # FIXME: there is no dropout in StackLSTMCell at this moment
     # BufferLSTM could have 0 or 2 parameters, depending on what is passed for initial hidden and cell state
-    self.stack = StackLSTMCell(options.stack_input_dim, options.stack_hid_dim, 0.0, options.stack_size, options.stack_lstm_layers, self.h0, self.c0)
-    self.buffer = LSTMStateBufferCell(options.stack_hid_dim, self.h0, self.c0)
+    self.stack = StackLSTMCell(options.stack_input_dim, self.hid_dim, 0.0, options.stack_size, options.stack_lstm_layers, self.h0, self.c0)
+    self.buffer = LSTMStateBufferCell(self.hid_dim, self.h0, self.c0)
     self.token_buffer = LSTMStateBufferCell(options.stack_input_dim) # elememtns in this buffer has size input_dim so h0 and c0 won't fit
-    self.history = nn.LSTMCell(input_size=options.action_emb_dim, hidden_size=options.stack_hid_dim) # FIXME: dropout needs to be implemented manually
+    self.history = nn.LSTMCell(input_size=options.action_emb_dim, hidden_size=self.hid_dim) # FIXME: dropout needs to be implemented manually
 
     # parser state and softmax
     self.summarize_states = nn.Sequential(
-        nn.Linear(3 * options.stack_hid_dim, options.stack_state_dim),
+        nn.Linear(3 * self.hid_dim, options.stack_state_dim),
         nn.ReLU()
     )
     self.state_to_actions = nn.Linear(options.stack_state_dim, len(actions))
@@ -164,7 +163,7 @@ class StackLSTMGenerator(nn.Module):
 
     self.buffer.build_stack(nmt_hiddens, buffer_cells, torch.ones(seq_len, batch_size), self.gpuid)
     self.token_buffer.build_stack(token_comp_output_rev, Variable(torch.zeros(token_comp_output_rev.size())), torch.ones(seq_len, batch_size), self.gpuid) # don't need cell for this
-    self.stack(self.root_input.unsqueeze(0).expand(batch_size, self.input_dim), Variable(torch.ones(batch_size).long()))
+    self.stack(self.root_input.unsqueeze(0).expand(batch_size, self.input_dim), Variable(torch.ones(batch_size).type(self.long_dtype)))
 
     stack_state, _ = self.stack.head() # (batch_size, hid_dim)
     buffer_state = self.buffer.head() # (batch_size, hid_dim)
@@ -173,7 +172,7 @@ class StackLSTMGenerator(nn.Module):
     action_cell = self.c0.unsqueeze(0).expand(batch_size, self.hid_dim) # (batch_size, hid_dim)
 
     # prepare bernoulli probability for exposure indicator
-    batch_exposure_prob = Variable(torch.Tensor([self.exposure_eps] * batch_size).type(self.dtype))
+    # batch_exposure_prob = Variable(torch.Tensor([self.exposure_eps] * batch_size).type(self.dtype))
 
     # main loop
     if actions is None:
@@ -189,11 +188,13 @@ class StackLSTMGenerator(nn.Module):
       action_dist = self.softmax(self.state_to_actions(summary)) # (batch_size, len(actions))
       outputs[step_i, :, :] = action_dist.clone()
       _, action_i = torch.max(action_dist, dim=1) # (batch_size,)
+
       # control exposure (only for training)
-      if actions is not None:
-        oracle_action_i = actions[step_i, :] # (batch_size,)
-        batch_exposure = torch.bernoulli(batch_exposure_prob) # (batch_size,)
-        action_i = Variable((action_i.data.float() * (1 - batch_exposure.data) + oracle_action_i.data.float() * batch_exposure.data).long()) # (batch_size,)
+      # if actions is not None:
+      #   oracle_action_i = actions[step_i, :] # (batch_size,)
+      #   batch_exposure = torch.bernoulli(batch_exposure_prob) # (batch_size,)
+      #   action_i = Variable((action_i.data.float() * (1 - batch_exposure.data) + oracle_action_i.data.float() * batch_exposure.data).long()) # (batch_size,)
+
       # translate action into stack & buffer ops
       # stack_op, buffer_op = self.map_action(action_i.data)
       stack_op = self.stack_action_mapping.index_select(0, action_i)

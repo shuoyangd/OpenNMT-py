@@ -12,6 +12,7 @@ from onmt.modules.MultiHeadedAttn import MultiHeadedAttention
 from onmt.modules.StackedRNN import StackedLSTM, StackedGRU
 from onmt.modules.Embeddings import Embeddings
 from onmt.modules.WeightNorm import WeightNormConv2d
+from onmt.modules.RNNGLoss import RNNGLoss
 
 from onmt.modules.SRU import check_sru_requirement
 can_use_sru = check_sru_requirement()
@@ -25,7 +26,7 @@ __all__ = [GlobalAttention, ImageEncoder, CopyGenerator, MultiHeadedAttention,
            TransformerEncoder, TransformerDecoder, Embeddings, Elementwise,
            MatrixTree, WeightNormConv2d, ConvMultiStepAttention,
            CNNEncoder, CNNDecoder, StackedLSTM, StackedGRU, ContextGateFactory,
-           CopyGeneratorLossCompute]
+           CopyGeneratorLossCompute, RNNGLoss]
 
 if can_use_sru:
     __all__.extend([SRU, check_sru_requirement])

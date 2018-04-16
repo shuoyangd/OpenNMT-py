@@ -61,7 +61,7 @@ class LossComputeBase(nn.Module):
         return batch_stats
 
     def sharded_compute_loss(self, batch, output, attns,
-                             cur_trunc, trunc_size, shard_size):
+                             cur_trunc, trunc_size, shard_size, retain_graph=False):
         """
         Compute the loss in shards for efficiency.
         """
@@ -69,9 +69,9 @@ class LossComputeBase(nn.Module):
         range_ = (cur_trunc, cur_trunc + trunc_size)
         shard_state = self.make_shard_state(batch, output, range_, attns)
 
-        for shard in shards(shard_state, shard_size):
+        for shard in shards(shard_state, shard_size, retain_graph=retain_graph):
             loss, stats = self.compute_loss(batch, **shard)
-            loss.div(batch.batch_size).backward()
+            loss.div(batch.batch_size).backward(retain_graph=retain_graph)
             batch_stats.update(stats)
 
         return batch_stats
@@ -102,13 +102,12 @@ class NMTLossCompute(LossComputeBase):
     """
     Standard NMT Loss Computation.
     """
-    def __init__(self, generator, tgt_vocab, lambda_=1.0):
+    def __init__(self, generator, tgt_vocab):
         super(NMTLossCompute, self).__init__(generator, tgt_vocab)
 
         weight = torch.ones(len(tgt_vocab))
         weight[self.padding_idx] = 0
         self.criterion = nn.NLLLoss(weight, size_average=False)
-        self.lambda_ = lambda_
 
     def make_shard_state(self, batch, output, range_, attns=None):
         """ See base class for args description. """
@@ -125,7 +124,7 @@ class NMTLossCompute(LossComputeBase):
         target = target.view(-1)
         target_data = target.data.clone()
 
-        loss = self.criterion(scores, target) * lambda_
+        loss = self.criterion(scores, target)
         loss_data = loss.data.clone()
 
         stats = self.stats(loss_data, scores_data, target_data)
@@ -141,7 +140,7 @@ def filter_shard_state(state):
             yield k, v
 
 
-def shards(state, shard_size, eval=False):
+def shards(state, shard_size, eval=False, retain_graph=False):
     """
     Args:
         state: A dictionary which corresponds to the output of
@@ -185,4 +184,4 @@ def shards(state, shard_size, eval=False):
         variables = ((state[k], v.grad.data) for k, v in non_none.items()
                      if isinstance(v, Variable) and v.grad is not None)
         inputs, grads = zip(*variables)
-        torch.autograd.backward(inputs, grads)
+        torch.autograd.backward(inputs, grads, retain_graph=retain_graph)

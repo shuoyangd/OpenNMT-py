@@ -140,10 +140,9 @@ def make_aux_loss_compute(model, tgt_vocab, dataset, opt):
     own *LossCompute class, by subclassing LossComputeBase.
     """
     if opt.copy_attn:
-        compute = onmt.modules.CopyGeneratorLossCompute(
-            model.generator, tgt_vocab, dataset, opt.copy_attn_force)
+        raise NotImplementedError
     else:
-        compute = onmt.Loss.NMTLossCompute(model.rnng_generator, tgt_vocab)
+        compute = onmt.modules.RNNGLoss(model.rnng_generator, tgt_vocab, opt.rnng_lambda)
 
     if use_gpu(opt):
         compute.cuda()
@@ -161,13 +160,13 @@ def train_model(model, train_data, valid_data, fields, optim):
     valid_loss = make_loss_compute(model, fields["tgt"].vocab,
                                    valid_data, opt)
     if opt.rnng:
-      aux_loss = make_aux_loss_compute(model, fields["tgt"].vocab,
+      aux_loss = make_aux_loss_compute(model, fields["aux_tgt"].vocab,
                                    train_data, opt)
 
     trunc_size = opt.truncated_decoder  # Badly named...
     shard_size = opt.max_generator_batches
 
-    if not opt.rnng:
+    if opt.rnng:
       trainer = onmt.Trainer(model, train_iter, valid_iter,
                             train_loss, valid_loss, optim,
                             trunc_size, shard_size, aux_loss)

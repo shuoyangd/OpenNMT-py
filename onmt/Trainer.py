@@ -123,7 +123,7 @@ class Trainer(object):
                 # 3. Compute loss in shards for memory efficiency.
                 batch_stats = self.train_loss.sharded_compute_loss(
                         batch, outputs, attns, j,
-                        trunc_size, self.shard_size)
+                        trunc_size, self.shard_size, retain_graph=True)
 
                 if self.aux_loss is not None:
                     # aux_batch has the same source as the original batch for NMT training,

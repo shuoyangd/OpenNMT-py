@@ -53,7 +53,7 @@ class LSTMStateBufferCell(nn.Module):
     self.cell_stack[1:self.seq_len+1, :, :] = cells
 
     # for padded sequences, the pos would be 0. That's why we need a padding state in the buffer.
-    self.pos = torch.sum(hidden_masks, dim=0).long() # note there is a initial state padding
+    self.pos = Variable(torch.sum(hidden_masks, dim=0).type(long_dtype)) # note there is a initial state padding
 
   def forward(self, op):
     """
@@ -92,7 +92,7 @@ class LSTMStateBufferCell(nn.Module):
     # print(len(self.pos))
     # print(self.hidden_stack.size())
     dtype = self.hidden_stack.long().data.type()
-    return self.hidden_stack[self.pos.data, torch.arange(0, len(self.pos)).type(dtype), :]
+    return self.hidden_stack[self.pos, torch.arange(0, len(self.pos)).type(dtype), :]
 
   def size(self):
     return torch.min(self.pos + 1).data[0]
