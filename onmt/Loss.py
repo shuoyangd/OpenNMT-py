@@ -102,12 +102,13 @@ class NMTLossCompute(LossComputeBase):
     """
     Standard NMT Loss Computation.
     """
-    def __init__(self, generator, tgt_vocab):
+    def __init__(self, generator, tgt_vocab, lambda_=1.0):
         super(NMTLossCompute, self).__init__(generator, tgt_vocab)
 
         weight = torch.ones(len(tgt_vocab))
         weight[self.padding_idx] = 0
         self.criterion = nn.NLLLoss(weight, size_average=False)
+        self.lambda_ = lambda_
 
     def make_shard_state(self, batch, output, range_, attns=None):
         """ See base class for args description. """
@@ -124,7 +125,7 @@ class NMTLossCompute(LossComputeBase):
         target = target.view(-1)
         target_data = target.data.clone()
 
-        loss = self.criterion(scores, target)
+        loss = self.criterion(scores, target) * lambda_
         loss_data = loss.data.clone()
 
         stats = self.stats(loss_data, scores_data, target_data)

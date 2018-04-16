@@ -133,6 +133,24 @@ def make_loss_compute(model, tgt_vocab, dataset, opt):
     return compute
 
 
+def make_aux_loss_compute(model, tgt_vocab, dataset, opt):
+    """
+    This returns user-defined LossCompute object, which is used to
+    compute loss in train/validate process. You can implement your
+    own *LossCompute class, by subclassing LossComputeBase.
+    """
+    if opt.copy_attn:
+        compute = onmt.modules.CopyGeneratorLossCompute(
+            model.generator, tgt_vocab, dataset, opt.copy_attn_force)
+    else:
+        compute = onmt.Loss.NMTLossCompute(model.rnng_generator, tgt_vocab)
+
+    if use_gpu(opt):
+        compute.cuda()
+
+    return compute
+
+
 def train_model(model, train_data, valid_data, fields, optim):
 
     train_iter = make_train_data_iter(train_data, opt)
@@ -142,13 +160,21 @@ def train_model(model, train_data, valid_data, fields, optim):
                                    train_data, opt)
     valid_loss = make_loss_compute(model, fields["tgt"].vocab,
                                    valid_data, opt)
+    if opt.rnng:
+      aux_loss = make_aux_loss_compute(model, fields["tgt"].vocab,
+                                   train_data, opt)
 
     trunc_size = opt.truncated_decoder  # Badly named...
     shard_size = opt.max_generator_batches
 
-    trainer = onmt.Trainer(model, train_iter, valid_iter,
-                           train_loss, valid_loss, optim,
-                           trunc_size, shard_size)
+    if not opt.rnng:
+      trainer = onmt.Trainer(model, train_iter, valid_iter,
+                            train_loss, valid_loss, optim,
+                            trunc_size, shard_size, aux_loss)
+    else:
+      trainer = onmt.Trainer(model, train_iter, valid_iter,
+                            train_loss, valid_loss, optim,
+                            trunc_size, shard_size)
 
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')

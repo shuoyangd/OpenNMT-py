@@ -100,6 +100,8 @@ def model_opts(parser):
     # RNNG Generator options
     parser.add_argument('-rnng', action="store_true",
                         help="Use RNNG as an auxiliary generator. (default=false)")
+    parser.add_argument('-rnng_lambda', type=float, default=1.0,
+                        help="The weight of the RNNG loss. (default=1.0)")
     parser.add_argument('-stack_size', type=int, default=100,
                         help="Stack size reserved for the stack LSTM components. (default=100)")
     parser.add_argument('-stack_hid_dim', type=int, default=100,
