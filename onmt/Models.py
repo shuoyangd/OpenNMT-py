@@ -10,6 +10,8 @@ import onmt
 from onmt.Utils import aeq
 
 
+import pdb
+
 def rnn_factory(rnn_type, **kwargs):
     # Use pytorch version when available.
     no_pack_padded_seq = False
@@ -592,6 +594,11 @@ class NMTModel(nn.Module):
         enc_final, memory_bank = self.encoder(src, lengths)
         enc_state = \
             self.decoder.init_decoder_state(src, memory_bank, enc_final)
+
+        from onmt.modules.StackLSTMEncoder import StackLSTMEncoder
+        if isinstance(self.encoder, StackLSTMEncoder):
+            lengths = 2 * lengths
+
         decoder_outputs, dec_state, attns = \
             self.decoder(tgt, memory_bank,
                          enc_state if dec_state is None

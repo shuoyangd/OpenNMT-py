@@ -13,6 +13,7 @@ from onmt.modules.MultiHeadedAttn import MultiHeadedAttention
 from onmt.modules.StackedRNN import StackedLSTM, StackedGRU
 from onmt.modules.Embeddings import Embeddings, PositionalEncoding
 from onmt.modules.WeightNorm import WeightNormConv2d
+from onmt.modules.StackLSTMEncoder import StackLSTMEncoder
 
 from onmt.Models import EncoderBase, MeanEncoder, StdRNNDecoder, \
     RNNDecoderBase, InputFeedRNNDecoder, RNNEncoder, NMTModel

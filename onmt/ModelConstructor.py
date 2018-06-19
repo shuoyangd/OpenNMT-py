@@ -13,7 +13,7 @@ from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
     StdRNNDecoder, InputFeedRNNDecoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
     TransformerEncoder, TransformerDecoder, \
-    CNNEncoder, CNNDecoder, AudioEncoder
+    CNNEncoder, CNNDecoder, AudioEncoder, StackLSTMEncoder
 from onmt.Utils import use_gpu
 from torch.nn.init import xavier_uniform
 
@@ -69,6 +69,11 @@ def make_encoder(opt, embeddings):
                           opt.dropout, embeddings)
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)
+    elif opt.encoder_type == "stacklstm":
+        return StackLSTMEncoder(opt.enc_layers, opt.trans_sys,
+                                opt.stack_size, opt.gpuid, opt.action_emb_dim,
+                                opt.rnn_size, opt.state_dim, opt.dropout,
+                                embeddings, opt.bridge)
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,

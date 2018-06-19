@@ -51,7 +51,7 @@ def model_opts(parser):
                        Options are [text|img|audio].""")
 
     group.add_argument('-encoder_type', type=str, default='rnn',
-                       choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn'],
+                       choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'stacklstm'],
                        help="""Type of encoder layer to use. Non-RNN layers
                        are experimental. Options are
                        [rnn|brnn|mean|transformer|cnn].""")
@@ -94,6 +94,20 @@ def model_opts(parser):
                        choices=['source', 'target', 'both'],
                        help="""Type of context gate to use.
                        Do not select for no context gate.""")
+    # stacklstm encoder options
+    group.add_argument('-trans_sys', default=3, type=int,
+                       help="""Choice of transition system:
+                       0 for ASd, 1 for AER, 2 for AES, 3 for AH.
+                       (default=3)""")
+    group.add_argument('-stack_size', default=150, type=int,
+                       help="Stack size of the StackLSTM. (default=150)")
+    group.add_argument('-action_emb_dim', default=16, type=int,
+                       help="Dimension of action embedding. (default=16)")
+    group.add_argument('-state_dim', default=None, type=int,
+                       help="""Legacy dimension of \"parser state\" in Dyer
+                       et al. 2015 paper. If unspecified, will be equal
+                       to the value of rnn_size option. (default=None)""")
+
 
     # Attention options
     group = parser.add_argument_group('Model- Attention')

@@ -5,6 +5,7 @@ import torch.cuda
 
 import onmt
 import onmt.io
+import onmt.Loss
 from onmt.Utils import aeq
 
 

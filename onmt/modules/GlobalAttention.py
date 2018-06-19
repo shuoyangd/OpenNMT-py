@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from onmt.Utils import aeq, sequence_mask
 
+import pdb
 
 class GlobalAttention(nn.Module):
     """
