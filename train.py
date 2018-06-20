@@ -77,10 +77,13 @@ if opt.exp_host != "":
     experiment = cc.create_experiment(opt.exp)
 
 if opt.tensorboard:
-    from tensorboardX import SummaryWriter
-    writer = SummaryWriter(
-        opt.tensorboard_log_dir + datetime.now().strftime("/%b-%d_%H-%M-%S"),
-        comment="Onmt")
+    import onmt.modules.WriterManager as WriterManager
+    WriterManager.init(opt.tensorboard_log_dir)
+    writer = WriterManager._WRITER
+    # from tensorboardX import SummaryWriter
+    # writer = SummaryWriter(
+    #     opt.tensorboard_log_dir + datetime.now().strftime("/%b-%d_%H-%M-%S"),
+    #     comment="Onmt")
 
 progress_step = 0
 

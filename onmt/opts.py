@@ -107,6 +107,14 @@ def model_opts(parser):
                        help="""Legacy dimension of \"parser state\" in Dyer
                        et al. 2015 paper. If unspecified, will be equal
                        to the value of rnn_size option. (default=None)""")
+    group.add_argument('-gumbel_temperature', default=1.0, type=float,
+                       help="""Temperature controlling the Gumbel Softmax
+                       distribution. (default=1.0)""")
+    group.add_argument('-gumbel_beta', default=1.0, type=float,
+                       help="""beta value controlling the range of Gumbel
+                       noise. See Guo et al. 2018
+                       (https://arxiv.org/pdf/1804.08077.pdf)
+                       for details (default=1.0)""")
 
 
     # Attention options

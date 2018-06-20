@@ -110,7 +110,10 @@ def sample_gumbel(input):
 # beta is an extra parameter introduced by Guo et al. 2018 (https://arxiv.org/pdf/1804.08077.pdf)
 #      that could be used to control the strength of Gumbel distribution.
 def gumbel_softmax_sample(input, temp=1., beta=1.):
+    import onmt.modules.WriterManager as WriterManager
     noise = sample_gumbel(input)
+    WriterManager._WRITER.add_scalar('data/gumbel_input_val', input[0][0])
+    WriterManager._WRITER.add_scalar('data/gumbel_noise_val', noise[0][0])
     x = (input + noise * beta) / temp 
     x = F.log_softmax(x, dim=-1)
     return x.view_as(input)
