@@ -187,6 +187,20 @@ class StackLSTMGenerator(nn.Module):
       summary = self.summarize_states(torch.cat((stack_state, buffer_state, action_state), dim=1)) # (batch_size, self.state_dim)
       action_dist = self.softmax(self.state_to_actions(summary)) # (batch_size, len(actions))
       outputs[step_i, :, :] = action_dist.clone()
+
+      # get rid of forbidden actions (only for decoding)
+      if actions is None or self.exposure_eps < 1.0:
+        forbidden_actions = self.get_valid_actions(batch_size) ^ 1
+        # print("stack size = {0}".format(self.stack.size()))
+        # print("buffer size = {0}".format(self.buffer.size()))
+        # print("forbidden actions = {0}".format(torch.sum(forbidden_actions, dim=1).tolist()))
+        num_forbidden_actions = torch.sum(forbidden_actions, dim=1)
+        # if all actions except <pad> and <unk> are forbidden for all sentences in the batch,
+        # there is no sense continue decoding.
+        if (num_forbidden_actions == (len(self.actions) - 2)).all():
+          break
+        action_dist.masked_fill_(Variable(forbidden_actions), -999)
+
       _, action_i = torch.max(action_dist, dim=1) # (batch_size,)
 
       # control exposure (only for training)
@@ -201,14 +215,14 @@ class StackLSTMGenerator(nn.Module):
       buffer_op = self.buffer_action_mapping.index_select(0, action_i)
 
       # check boundary conditions, assuming buffer won't be pushed anymore
-      stack_pop_boundary = Variable((self.stack.pos == 0).data & (stack_op == -1).data)
-      stack_push_boundary = Variable((self.stack.pos >= self.stack_size).data & (stack_op == 1).data)
-      buffer_pop_boundary = Variable((self.buffer.pos ==0).data & (buffer_op == -1).data)
+      # stack_pop_boundary = Variable((self.stack.pos == 0).data & (stack_op == -1).data)
+      # stack_push_boundary = Variable((self.stack.pos >= self.stack_size).data & (stack_op == 1).data)
+      # buffer_pop_boundary = Variable((self.buffer.pos ==0).data & (buffer_op == -1).data)
 
       # if stack/buffer is at boundary, hold at current position rather than push/pop
-      stack_op = stack_op.masked_fill(stack_pop_boundary, 0)
-      stack_op = stack_op.masked_fill(stack_push_boundary, 0)
-      buffer_op = buffer_op.masked_fill(buffer_pop_boundary, 0)
+      # stack_op = stack_op.masked_fill(stack_pop_boundary, 0)
+      # stack_op = stack_op.masked_fill(stack_push_boundary, 0)
+      # buffer_op = buffer_op.masked_fill(buffer_pop_boundary, 0)
 
       # update stack, buffer and action state
       stack_state, _ = self.stack(stack_input, stack_op)
@@ -220,6 +234,30 @@ class StackLSTMGenerator(nn.Module):
       step_i += 1
 
     return outputs
+
+  def get_valid_actions(self, batch_size):
+    action_mask = torch.ones(batch_size, len(self.actions)).type(self.long_dtype).byte()  # (batch_size, len(actions))
+
+    for idx, action_str in enumerate(self.actions):
+      # general popping safety
+      sa = self.stack_action_mapping[idx].repeat(batch_size)
+      ba = self.buffer_action_mapping[idx].repeat(batch_size)
+      stack_forbid = ((sa == -1).data & (self.stack.pos <= 1).data)
+      buffer_forbid = ((ba == -1).data & (self.buffer.pos == 0).data)
+      action_mask[:, idx] = (action_mask[:, idx] & ((stack_forbid | buffer_forbid) ^ 1))
+
+      # transition-system specific operation safety
+      if self.transSys == TransitionSystems.AER:
+        la_forbid = (((self.buffer.pos == 0).data | (self.stack.pos <= 1).data) & action_str.startswith("Left-Arc"))
+        ra_forbid = (((self.stack.pos == 0).data | (self.stack.pos == 0).data) & action_str.startswith("Right-Arc"))
+        action_mask[:, idx] = (action_mask[:, idx] & ((la_forbid | ra_forbid) ^ 1))
+
+      if self.transSys == TransitionSystems.AH:
+        la_forbid = (((self.buffer.pos == 0).data | (self.stack.pos <= 1).data) & action_str.startswith("Left-Arc"))
+        ra_forbid = (self.stack.pos <= 1).data & action_str.startswith("Right-Arc")
+        action_mask[:, idx] = (action_mask[:, idx] & ((la_forbid | ra_forbid) ^ 1))
+
+    return action_mask
 
   def set_action_mappings(self):
     for idx, astr in enumerate(self.actions):
@@ -233,3 +271,4 @@ class StackLSTMGenerator(nn.Module):
       else:
         logging.fatal("Unimplemented transition system.")
         raise NotImplementedError
+
